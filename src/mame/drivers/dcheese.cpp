@@ -53,8 +53,7 @@
 
 void dcheese_state::update_irq_state()
 {
-	int i;
-	for (i = 1; i < 5; i++)
+	for (int i = 1; i < 5; i++)
 		m_maincpu->set_input_line(i, m_irq_state[i] ? ASSERT_LINE : CLEAR_LINE);
 }
 
@@ -386,9 +385,9 @@ MACHINE_CONFIG_START(dcheese_state::dcheese)
 
 	EEPROM_93C46_16BIT(config, "eeprom");
 
-	MCFG_TICKET_DISPENSER_ADD("ticket", attotime::from_msec(200), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_LOW)
+	TICKET_DISPENSER(config, "ticket", attotime::from_msec(200), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_LOW);
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -398,15 +397,14 @@ MACHINE_CONFIG_START(dcheese_state::dcheese)
 	MCFG_SCREEN_UPDATE_DRIVER(dcheese_state, screen_update_dcheese)
 	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_ADD("palette", 65536)
-	MCFG_PALETTE_INIT_OWNER(dcheese_state, dcheese)
+	PALETTE(config, "palette", FUNC(dcheese_state::dcheese_palette), 65536);
 
 	/* sound hardware */
 	SPEAKER(config, "lspeaker").front_left();
 	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("audiocpu", 0))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, 0);
 
 	MCFG_DEVICE_ADD("bsmt", BSMT2000, SOUND_OSC)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.2)

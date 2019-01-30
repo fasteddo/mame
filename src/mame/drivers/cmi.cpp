@@ -106,6 +106,7 @@
 #include "cpu/m6809/m6809.h"
 #include "cpu/m68000/m68000.h"
 
+#include "imagedev/floppy.h"
 #include "machine/6821pia.h"
 #include "machine/6840ptm.h"
 #include "machine/6850acia.h"
@@ -220,9 +221,7 @@ public:
 		, m_midicpu(*this, "smptemidi")
 		, m_cmi07cpu(*this, "cmi07cpu")
 		, m_msm5832(*this, "msm5832")
-		, m_i8214_0(*this, "i8214_1")
-		, m_i8214_1(*this, "i8214_2")
-		, m_i8214_2(*this, "i8214_3")
+		, m_i8214(*this, "i8214_%u", 1U)
 		, m_q133_pia(*this, "q133_pia_%u", 1U)
 		, m_q133_ptm(*this, "q133_ptm")
 		, m_q133_acia(*this, "q133_acia_%u", 0U)
@@ -377,9 +376,7 @@ protected:
 	required_device<mc6809e_device> m_cmi07cpu;
 
 	required_device<msm5832_device> m_msm5832;
-	required_device<i8214_device> m_i8214_0;
-	required_device<i8214_device> m_i8214_1;
-	required_device<i8214_device> m_i8214_2;
+	required_device_array<i8214_device, 3> m_i8214;
 	required_device_array<pia6821_device, 2> m_q133_pia;
 	required_device<ptm6840_device> m_q133_ptm;
 	required_device_array<mos6551_device, 4> m_q133_acia;
@@ -1369,10 +1366,10 @@ READ8_MEMBER( cmi_state::fdc_r )
 	{
 		switch (m_fdc_addr)
 		{
-			case 0xc: { return m_wd1791->status_r() ^ 0xff; }
-			case 0xd: { return m_wd1791->track_r() ^ 0xff; }
-			case 0xe: { return m_wd1791->sector_r() ^ 0xff; }
-			case 0xf: { return m_wd1791->data_r() ^ 0xff; }
+			case 0xc: return m_wd1791->status_r() ^ 0xff;
+			case 0xd: return m_wd1791->track_r() ^ 0xff;
+			case 0xe: return m_wd1791->sector_r() ^ 0xff;
+			case 0xf: return m_wd1791->data_r() ^ 0xff;
 			default:  return 0;
 		}
 	}
@@ -1585,8 +1582,8 @@ WRITE8_MEMBER( cmi_state::cmi02_w )
 			case 0x30:
 				m_maincpu1->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 				data ^= 0xff;
-				m_i8214_2->sgs_w((data >> 3) & 1);
-				m_i8214_2->b_w(data & 0x7);
+				m_i8214[2]->sgs_w((data >> 3) & 1);
+				m_i8214[2]->b_w(data & 0x7);
 				break;
 
 			case 0x31: case 0x32:
@@ -1625,8 +1622,8 @@ WRITE8_MEMBER( cmi_state::i8214_cpu1_w )
 	//printf("i8214_cpu1_w: %02x\n", data);
 	m_maincpu1->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 	data ^= 0xff;
-	m_i8214_0->sgs_w((data >> 3) & 1);
-	m_i8214_0->b_w(data & 0x7);
+	m_i8214[0]->sgs_w((data >> 3) & 1);
+	m_i8214[0]->b_w(data & 0x7);
 }
 
 
@@ -1635,8 +1632,8 @@ WRITE8_MEMBER( cmi_state::i8214_cpu2_w )
 	//printf("i8214_cpu2_w: %02x\n", data);
 	m_maincpu2->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 	data ^= 0xff;
-	m_i8214_1->sgs_w((data >> 3) & 1);
-	m_i8214_1->b_w(data & 0x7);
+	m_i8214[1]->sgs_w((data >> 3) & 1);
+	m_i8214[1]->b_w(data & 0x7);
 }
 
 // TODO: replace with AM_SHARE
@@ -1732,7 +1729,7 @@ IRQ_CALLBACK_MEMBER( cmi_state::cpu1_interrupt_callback )
 	if (irqline == INPUT_LINE_IRQ0)
 	{
 		int vector = (m_hp_int ? 0xffe0 : 0xffd0);
-		int level = (m_hp_int ? m_i8214_2->a_r() : m_i8214_0->a_r()) ^ 7;
+		int level = (m_hp_int ? m_i8214[2]->a_r() : m_i8214[0]->a_r()) ^ 7;
 		m_irq_address[CPU_1][0] = m_cpu1space->read_byte(vector + level*2);
 		m_irq_address[CPU_1][1] = m_cpu1space->read_byte(vector + level*2 + 1);
 
@@ -1753,7 +1750,7 @@ IRQ_CALLBACK_MEMBER( cmi_state::cpu2_interrupt_callback )
 
 	if (irqline == INPUT_LINE_IRQ0)
 	{
-		int level = m_i8214_1->a_r() ^ 0x7;
+		int level = m_i8214[1]->a_r() ^ 0x7;
 		m_irq_address[CPU_2][0] = m_cpu2space->read_byte(0xffe0 + level*2);
 		m_irq_address[CPU_2][1] = m_cpu2space->read_byte(0xffe0 + level*2 + 1);
 
@@ -1769,7 +1766,7 @@ void cmi_state::set_interrupt(int cpunum, int level, int state)
 {
 	//printf("CPU%d Int: %x State: %x\n", cpunum + 1, level, state);
 
-	i8214_device *i8214 = ((cpunum == CPU_2) ? m_i8214_1 : (level < 8 ? m_i8214_2 : m_i8214_0));
+	i8214_device *i8214 = ((cpunum == CPU_2) ? m_i8214[1] : (level < 8 ? m_i8214[2] : m_i8214[0]));
 	i8214->r_w(level & 7, state ? 0 : 1);
 }
 
@@ -2063,12 +2060,12 @@ void cmi_state::machine_reset()
 	m_qfc9_region_ptr = (uint8_t *)m_qfc9_region->base();
 
 	/* Set 8214 interrupt lines */
-	m_i8214_0->etlg_w(1);
-	m_i8214_0->inte_w(1);
-	m_i8214_1->etlg_w(1);
-	m_i8214_1->inte_w(1);
-	m_i8214_2->etlg_w(1);
-	m_i8214_2->inte_w(1);
+	m_i8214[0]->etlg_w(1);
+	m_i8214[0]->inte_w(1);
+	m_i8214[1]->etlg_w(1);
+	m_i8214[1]->inte_w(1);
+	m_i8214[2]->etlg_w(1);
+	m_i8214[2]->inte_w(1);
 
 	m_hblank_timer->adjust(m_screen->time_until_pos(0, HBLANK_START));
 
@@ -2186,12 +2183,12 @@ MACHINE_CONFIG_START(cmi_state::cmi2x)
 	MCFG_DEVICE_PROGRAM_MAP(cmi07cpu_map)
 
 	/* alpha-numeric display */
-	MCFG_DEVICE_ADD("dp1", DL1416T, u32(0))
-	MCFG_DL1416_UPDATE_HANDLER(WRITE16(*this, cmi_state, cmi_iix_update_dp<0>))
-	MCFG_DEVICE_ADD("dp2", DL1416T, u32(0))
-	MCFG_DL1416_UPDATE_HANDLER(WRITE16(*this, cmi_state, cmi_iix_update_dp<1>))
-	MCFG_DEVICE_ADD("dp3", DL1416T, u32(0))
-	MCFG_DL1416_UPDATE_HANDLER(WRITE16(*this, cmi_state, cmi_iix_update_dp<2>))
+	DL1416T(config, m_dp1, u32(0));
+	m_dp1->update().set(FUNC(cmi_state::cmi_iix_update_dp<0>));
+	DL1416T(config, m_dp2, u32(0));
+	m_dp2->update().set(FUNC(cmi_state::cmi_iix_update_dp<1>));
+	DL1416T(config, m_dp3, u32(0));
+	m_dp3->update().set(FUNC(cmi_state::cmi_iix_update_dp<2>));
 
 	/* video hardware */
 	MCFG_SCREEN_ADD_MONOCHROME("screen", RASTER, rgb_t::green())
@@ -2199,17 +2196,17 @@ MACHINE_CONFIG_START(cmi_state::cmi2x)
 	MCFG_SCREEN_UPDATE_DRIVER(cmi_state, screen_update_cmi2x)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, cmi_state, cmi_iix_vblank))
 
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
+	PALETTE(config, m_palette, palette_device::MONOCHROME);
 
-	MCFG_DEVICE_ADD("msm5832", MSM5832, 32.768_kHz_XTAL)
+	MSM5832(config, m_msm5832, 32.768_kHz_XTAL);
 
-	MCFG_DEVICE_ADD("i8214_1", I8214, 1000000) // cmi_8214_intf_1
-	MCFG_I8214_INT_CALLBACK(WRITELINE(*this, cmi_state, i8214_1_int_w))
-	MCFG_DEVICE_ADD("i8214_2", I8214, 1000000) // cmi_8214_intf_2
-	MCFG_I8214_INT_CALLBACK(WRITELINE(*this, cmi_state, i8214_2_int_w))
-	MCFG_DEVICE_ADD("i8214_3", I8214, 1000000) // cmi_8214_intf_3
-	MCFG_I8214_INT_CALLBACK(WRITELINE(*this, cmi_state, i8214_3_int_w))
-	MCFG_I8214_ENLG_CALLBACK(WRITELINE(*this, cmi_state, i8214_3_enlg))
+	I8214(config, m_i8214[0], 1000000); // cmi_8214_intf_1
+	m_i8214[0]->int_wr_callback().set(FUNC(cmi_state::i8214_1_int_w));
+	I8214(config, m_i8214[1], 1000000); // cmi_8214_intf_2
+	m_i8214[1]->int_wr_callback().set(FUNC(cmi_state::i8214_2_int_w));
+	I8214(config, m_i8214[2], 1000000); // cmi_8214_intf_3
+	m_i8214[2]->int_wr_callback().set(FUNC(cmi_state::i8214_3_int_w));
+	m_i8214[2]->enlg_wr_callback().set(FUNC(cmi_state::i8214_3_enlg));
 
 	PIA6821(config, m_q133_pia[0], 0); // pia_q133_1_config
 	m_q133_pia[0]->readpa_handler().set(FUNC(cmi_state::q133_1_porta_r));
@@ -2241,8 +2238,8 @@ MACHINE_CONFIG_START(cmi_state::cmi2x)
 	m_cmi02_ptm->o2_callback().set(FUNC(cmi_state::cmi02_ptm_o2));
 	m_cmi02_ptm->irq_callback().set(FUNC(cmi_state::cmi02_ptm_irq));
 
-	MCFG_DEVICE_ADD("mkbd_acia_clock", CLOCK, 1.8432_MHz_XTAL / 12)
-	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(*this, cmi_state, mkbd_acia_clock))
+	clock_device &mkbd_acia_clock(CLOCK(config, "mkbd_acia_clock", 1.8432_MHz_XTAL / 12));
+	mkbd_acia_clock.signal_handler().set(FUNC(cmi_state::mkbd_acia_clock));
 
 	for (auto &acia : m_q133_acia)
 		MOS6551(config, acia, 1.8432_MHz_XTAL).set_xtal(1.8432_MHz_XTAL);
@@ -2268,8 +2265,7 @@ MACHINE_CONFIG_START(cmi_state::cmi2x)
 	m_acia_mkbd_kbd->rts_handler().set("ank_pia", FUNC(pia6821_device::ca2_w));
 	m_acia_mkbd_kbd->irq_handler().set(FUNC(cmi_state::mkbd_kbd_acia_int));
 
-	MCFG_INPUT_MERGER_ANY_HIGH("irqs")
-	MCFG_INPUT_MERGER_OUTPUT_HANDLER(INPUTLINE("alphakeys", M6802_IRQ_LINE))
+	INPUT_MERGER_ANY_HIGH(config, "irqs").output_handler().set_inputline(m_alphakeyscpu, M6802_IRQ_LINE);
 
 	m_ank_pia->readpa_handler().set(FUNC(cmi_state::ank_col_r));
 	m_ank_pia->readcb1_handler().set(FUNC(cmi_state::ank_rts_r));
@@ -2278,15 +2274,15 @@ MACHINE_CONFIG_START(cmi_state::cmi2x)
 	m_ank_pia->irqa_handler().set("irqs", FUNC(input_merger_device::in_w<0>));
 	m_ank_pia->irqb_handler().set("irqs", FUNC(input_merger_device::in_w<1>));
 
-	MCFG_DEVICE_ADD("ank_pia_clock", CLOCK, 9600)
-	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE("ank_pia", pia6821_device, ca1_w))
+	clock_device &ank_pia_clock(CLOCK(config, "ank_pia_clock", 9600));
+	ank_pia_clock.signal_handler().set(m_ank_pia, FUNC(pia6821_device::ca1_w));
 
 	PTM6840(config, m_cmi07_ptm, 2000000); // ptm_cmi07_config TODO
 	m_cmi07_ptm->irq_callback().set(FUNC(cmi_state::cmi07_irq));
 
-	MCFG_DEVICE_ADD("wd1791", FD1791, 16_MHz_XTAL / 8) // wd1791_interface
-	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(*this, cmi_state, wd1791_irq))
-	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(*this, cmi_state, wd1791_drq))
+	FD1791(config, m_wd1791, 16_MHz_XTAL / 8); // wd1791_interface
+	m_wd1791->intrq_wr_callback().set(FUNC(cmi_state::wd1791_irq));
+	m_wd1791->drq_wr_callback().set(FUNC(cmi_state::wd1791_drq));
 	MCFG_FLOPPY_DRIVE_ADD("wd1791:0", cmi2x_floppies, "8dsdd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("wd1791:1", cmi2x_floppies, "8dsdd", floppy_image_device::default_floppy_formats)
 
@@ -2304,30 +2300,30 @@ MACHINE_CONFIG_START(cmi_state::cmi2x)
 	SPEAKER(config, "mono").front_center();
 
 	// Channel cards
-	MCFG_DEVICE_ADD("cmi01a_0", CMI01A_CHANNEL_CARD, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CMI01A_IRQ_CALLBACK(WRITELINE(*this, cmi_state, channel_irq<0>))
-	MCFG_DEVICE_ADD("cmi01a_1", CMI01A_CHANNEL_CARD, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CMI01A_IRQ_CALLBACK(WRITELINE(*this, cmi_state, channel_irq<1>))
-	MCFG_DEVICE_ADD("cmi01a_2", CMI01A_CHANNEL_CARD, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CMI01A_IRQ_CALLBACK(WRITELINE(*this, cmi_state, channel_irq<2>))
-	MCFG_DEVICE_ADD("cmi01a_3", CMI01A_CHANNEL_CARD, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CMI01A_IRQ_CALLBACK(WRITELINE(*this, cmi_state, channel_irq<3>))
-	MCFG_DEVICE_ADD("cmi01a_4", CMI01A_CHANNEL_CARD, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CMI01A_IRQ_CALLBACK(WRITELINE(*this, cmi_state, channel_irq<4>))
-	MCFG_DEVICE_ADD("cmi01a_5", CMI01A_CHANNEL_CARD, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CMI01A_IRQ_CALLBACK(WRITELINE(*this, cmi_state, channel_irq<5>))
-	MCFG_DEVICE_ADD("cmi01a_6", CMI01A_CHANNEL_CARD, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CMI01A_IRQ_CALLBACK(WRITELINE(*this, cmi_state, channel_irq<6>))
-	MCFG_DEVICE_ADD("cmi01a_7", CMI01A_CHANNEL_CARD, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CMI01A_IRQ_CALLBACK(WRITELINE(*this, cmi_state, channel_irq<7>))
+	cmi01a_device &cmi01a_0(CMI01A_CHANNEL_CARD(config, "cmi01a_0", 0));
+	cmi01a_0.add_route(ALL_OUTPUTS, "mono", 0.25);
+	cmi01a_0.irq_callback().set(FUNC(cmi_state::channel_irq<0>));
+	cmi01a_device &cmi01a_1(CMI01A_CHANNEL_CARD(config, "cmi01a_1", 0));
+	cmi01a_1.add_route(ALL_OUTPUTS, "mono", 0.25);
+	cmi01a_1.irq_callback().set(FUNC(cmi_state::channel_irq<0>));
+	cmi01a_device &cmi01a_2(CMI01A_CHANNEL_CARD(config, "cmi01a_2", 0));
+	cmi01a_2.add_route(ALL_OUTPUTS, "mono", 0.25);
+	cmi01a_2.irq_callback().set(FUNC(cmi_state::channel_irq<0>));
+	cmi01a_device &cmi01a_3(CMI01A_CHANNEL_CARD(config, "cmi01a_3", 0));
+	cmi01a_3.add_route(ALL_OUTPUTS, "mono", 0.25);
+	cmi01a_3.irq_callback().set(FUNC(cmi_state::channel_irq<0>));
+	cmi01a_device &cmi01a_4(CMI01A_CHANNEL_CARD(config, "cmi01a_4", 0));
+	cmi01a_4.add_route(ALL_OUTPUTS, "mono", 0.25);
+	cmi01a_4.irq_callback().set(FUNC(cmi_state::channel_irq<0>));
+	cmi01a_device &cmi01a_5(CMI01A_CHANNEL_CARD(config, "cmi01a_5", 0));
+	cmi01a_5.add_route(ALL_OUTPUTS, "mono", 0.25);
+	cmi01a_5.irq_callback().set(FUNC(cmi_state::channel_irq<0>));
+	cmi01a_device &cmi01a_6(CMI01A_CHANNEL_CARD(config, "cmi01a_6", 0));
+	cmi01a_6.add_route(ALL_OUTPUTS, "mono", 0.25);
+	cmi01a_6.irq_callback().set(FUNC(cmi_state::channel_irq<0>));
+	cmi01a_device &cmi01a_7(CMI01A_CHANNEL_CARD(config, "cmi01a_7", 0));
+	cmi01a_7.add_route(ALL_OUTPUTS, "mono", 0.25);
+	cmi01a_7.irq_callback().set(FUNC(cmi_state::channel_irq<0>));
 MACHINE_CONFIG_END
 
 ROM_START( cmi2x )

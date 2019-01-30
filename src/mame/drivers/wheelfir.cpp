@@ -748,7 +748,7 @@ MACHINE_CONFIG_START(wheelfir_state::wheelfir)
 	adc.in_callback<1>().set_ioport("ACCELERATOR");
 	adc.in_callback<2>().set_ioport("BRAKE");
 
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scan_timer", wheelfir_state, scanline_timer_callback, "screen", 0, 1)
+	TIMER(config, "scan_timer").configure_scanline(FUNC(wheelfir_state::scanline_timer_callback), "screen", 0, 1);
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -759,11 +759,12 @@ MACHINE_CONFIG_START(wheelfir_state::wheelfir)
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_PALETTE_ADD("palette", NUM_COLORS)
-	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
+	ramdac_device &ramdac(RAMDAC(config, "ramdac", 0, m_palette));
+	ramdac.set_addrmap(0, &wheelfir_state::ramdac_map);
 
 	EEPROM_93C46_16BIT(config, "eeprom");
 
-	MCFG_GENERIC_LATCH_16_ADD("soundlatch")
+	GENERIC_LATCH_16(config, "soundlatch");
 
 	/* sound hardware */
 	SPEAKER(config, "lspeaker").front_left();

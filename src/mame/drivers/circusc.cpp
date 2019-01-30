@@ -139,9 +139,9 @@ WRITE8_MEMBER(circusc_state::circusc_sound_w)
 
 		/* CS6 */
 		case 4:
-			m_discrete->write(space, NODE_05, (offset & 0x20) >> 5);
-			m_discrete->write(space, NODE_06, (offset & 0x18) >> 3);
-			m_discrete->write(space, NODE_07, (offset & 0x40) >> 6);
+			m_discrete->write(NODE_05, (offset & 0x20) >> 5);
+			m_discrete->write(NODE_06, (offset & 0x18) >> 3);
+			m_discrete->write(NODE_07, (offset & 0x40) >> 6);
 			break;
 	}
 }
@@ -358,12 +358,10 @@ MACHINE_CONFIG_START(circusc_state::circusc)
 	mainlatch.q_out_cb<4>().set(FUNC(circusc_state::coin_counter_2_w)); // COIN2
 	mainlatch.q_out_cb<5>().set(FUNC(circusc_state::spritebank_w)); // OBJ CHENG
 
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_VBLANK_INIT("screen", 8)
+	WATCHDOG_TIMER(config, "watchdog").set_vblank_count("screen", 8);
 
 	MCFG_DEVICE_ADD("audiocpu", Z80, XTAL(14'318'181)/4)
 	MCFG_DEVICE_PROGRAM_MAP(sound_map)
-
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -372,18 +370,16 @@ MACHINE_CONFIG_START(circusc_state::circusc)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(circusc_state, screen_update_circusc)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, circusc_state, vblank_irq))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_circusc)
-	MCFG_PALETTE_ADD("palette", 16*16+16*16)
-	MCFG_PALETTE_INDIRECT_ENTRIES(32)
-	MCFG_PALETTE_INIT_OWNER(circusc_state, circusc)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_circusc);
+	PALETTE(config, m_palette, FUNC(circusc_state::circusc_palette), 16*16 + 16*16, 32);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, "soundlatch");
 
 	MCFG_DEVICE_ADD("sn1", SN76496, XTAL(14'318'181)/8)
 	MCFG_SOUND_ROUTE(0, "fltdisc", 1.0, 0)

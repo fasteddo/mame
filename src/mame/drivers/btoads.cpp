@@ -305,14 +305,14 @@ INPUT_PORTS_END
 
 MACHINE_CONFIG_START(btoads_state::btoads)
 
-	MCFG_DEVICE_ADD("maincpu", TMS34020, CPU_CLOCK/2)
-	MCFG_DEVICE_PROGRAM_MAP(main_map)
-	MCFG_TMS340X0_HALT_ON_RESET(false) /* halt on reset */
-	MCFG_TMS340X0_PIXEL_CLOCK(VIDEO_CLOCK/2) /* pixel clock */
-	MCFG_TMS340X0_PIXELS_PER_CLOCK(1) /* pixels per clock */
-	MCFG_TMS340X0_SCANLINE_RGB32_CB(btoads_state, scanline_update)     /* scanline updater (RGB32) */
-	MCFG_TMS340X0_TO_SHIFTREG_CB(btoads_state, to_shiftreg)  /* write to shiftreg function */
-	MCFG_TMS340X0_FROM_SHIFTREG_CB(btoads_state, from_shiftreg) /* read from shiftreg function */
+	TMS34020(config, m_maincpu, CPU_CLOCK/2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &btoads_state::main_map);
+	m_maincpu->set_halt_on_reset(false);
+	m_maincpu->set_pixel_clock(VIDEO_CLOCK/2);
+	m_maincpu->set_pixels_per_clock(1);
+	m_maincpu->set_scanline_rgb32_callback(FUNC(btoads_state::scanline_update));
+	m_maincpu->set_shiftreg_in_callback(FUNC(btoads_state::to_shiftreg));
+	m_maincpu->set_shiftreg_out_callback(FUNC(btoads_state::from_shiftreg));
 
 	MCFG_DEVICE_ADD("audiocpu", Z80, SOUND_CLOCK/4)
 	MCFG_DEVICE_PROGRAM_MAP(sound_map)
@@ -322,7 +322,7 @@ MACHINE_CONFIG_START(btoads_state::btoads)
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	/* video hardware */
-	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
+	TLC34076(config, m_tlc34076, tlc34076_device::TLC34076_6_BIT);
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK/2, 640, 0, 512, 257, 0, 224)

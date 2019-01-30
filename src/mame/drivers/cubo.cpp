@@ -1038,9 +1038,7 @@ MACHINE_CONFIG_START(cubo_state::cubo)
 
 	ADDRESS_MAP_BANK(config, "overlay").set_map(&amiga_state::overlay_2mb_map32).set_options(ENDIANNESS_BIG, 32, 22, 0x200000);
 
-	MCFG_I2CMEM_ADD("i2cmem")
-	MCFG_I2CMEM_PAGE_SIZE(16)
-	MCFG_I2CMEM_DATA_SIZE(1024)
+	I2CMEM(config, "i2cmem", 0).set_page_size(16).set_data_size(1024);
 
 	akiko_device &akiko(AKIKO(config, "akiko", 0));
 	akiko.mem_r_callback().set(FUNC(amiga_state::chip_ram_r));
@@ -1076,17 +1074,17 @@ MACHINE_CONFIG_START(cubo_state::cubo)
 
 	/* cia */
 	// these are setup differently on other amiga drivers (needed for floppy to work) which is correct / why?
-	MCFG_DEVICE_ADD("cia_0", MOS8520, amiga_state::CLK_E_PAL)
-	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(*this, amiga_state, cia_0_irq))
-	MCFG_MOS6526_PA_INPUT_CALLBACK(IOPORT("CIA0PORTA"))
-	MCFG_MOS6526_PA_OUTPUT_CALLBACK(WRITE8(*this, cubo_state, akiko_cia_0_port_a_write))
-	MCFG_DEVICE_ADD("cia_1", MOS8520, amiga_state::CLK_E_PAL)
-	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(*this, amiga_state, cia_1_irq))
+	MOS8520(config, m_cia_0, amiga_state::CLK_E_PAL);
+	m_cia_0->irq_wr_callback().set(FUNC(amiga_state::cia_0_irq));
+	m_cia_0->pa_rd_callback().set_ioport("CIA0PORTA");
+	m_cia_0->pa_wr_callback().set(FUNC(cubo_state::akiko_cia_0_port_a_write));
 
-	MCFG_MICROTOUCH_ADD("microtouch", 9600, WRITELINE(*this, cubo_state, rs232_rx_w))
+	MOS8520(config, m_cia_1, amiga_state::CLK_E_PAL);
+	m_cia_1->irq_wr_callback().set(FUNC(amiga_state::cia_1_irq));
 
-	MCFG_CDROM_ADD("cd32_cdrom")
-	MCFG_CDROM_INTERFACE("cd32_cdrom")
+	MICROTOUCH(config, m_microtouch, 9600).stx().set(FUNC(cubo_state::rs232_rx_w));
+
+	CDROM(config, "cd32_cdrom").set_interface("cd32_cdrom");
 
 	/* fdc */
 	AMIGA_FDC(config, m_fdc, amiga_state::CLK_7M_PAL);

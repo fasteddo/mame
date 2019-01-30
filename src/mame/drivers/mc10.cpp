@@ -56,7 +56,6 @@ private:
 
 	void alice32_mem(address_map &map);
 	void alice90_mem(address_map &map);
-	void mc10_io(address_map &map);
 	void mc10_mem(address_map &map);
 
 	// device-level overrides
@@ -306,12 +305,6 @@ void mc10_state::mc10_mem(address_map &map)
 	map(0xe000, 0xffff).rom().region("maincpu", 0x0000); /* ROM */
 }
 
-void mc10_state::mc10_io(address_map &map)
-{
-	map(M6801_PORT1, M6801_PORT1).rw(FUNC(mc10_state::mc10_port1_r), FUNC(mc10_state::mc10_port1_w));
-	map(M6801_PORT2, M6801_PORT2).rw(FUNC(mc10_state::mc10_port2_r), FUNC(mc10_state::mc10_port2_w));
-}
-
 void mc10_state::alice32_mem(address_map &map)
 {
 	map(0x0100, 0x2fff).noprw(); /* unused */
@@ -512,15 +505,19 @@ INPUT_PORTS_END
 MACHINE_CONFIG_START(mc10_state::mc10)
 
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", M6803, XTAL(3'579'545))  /* 0,894886 MHz */
-	MCFG_DEVICE_PROGRAM_MAP(mc10_mem)
-	MCFG_DEVICE_IO_MAP(mc10_io)
+	M6803(config, m_maincpu, XTAL(3'579'545));  /* 0,894886 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &mc10_state::mc10_mem);
+	m_maincpu->in_p1_cb().set(FUNC(mc10_state::mc10_port1_r));
+	m_maincpu->out_p1_cb().set(FUNC(mc10_state::mc10_port1_w));
+	m_maincpu->in_p2_cb().set(FUNC(mc10_state::mc10_port2_r));
+	m_maincpu->out_p2_cb().set(FUNC(mc10_state::mc10_port2_w));
 
 	/* video hardware */
-	MCFG_SCREEN_MC6847_NTSC_ADD("screen", "mc6847")
+	SCREEN(config, "screen", SCREEN_TYPE_RASTER);
 
-	MCFG_DEVICE_ADD("mc6847", MC6847_NTSC, XTAL(3'579'545))
-	MCFG_MC6847_INPUT_CALLBACK(READ8(*this, mc10_state, mc6847_videoram_r))
+	mc6847_ntsc_device &vdg(MC6847_NTSC(config, "mc6847", XTAL(3'579'545)));
+	vdg.set_screen("screen");
+	vdg.input_callback().set(FUNC(mc10_state::mc6847_videoram_r));
 
 	/* sound hardware */
 	SPEAKER(config, "speaker").front_center();
@@ -528,13 +525,13 @@ MACHINE_CONFIG_START(mc10_state::mc10)
 	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
 	MCFG_SOUND_ROUTE(0, "dac", 1.0, DAC_VREF_POS_INPUT)
 
-	MCFG_CASSETTE_ADD("cassette")
-	MCFG_CASSETTE_FORMATS(coco_cassette_formats)
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
-	MCFG_CASSETTE_INTERFACE("mc10_cass")
+	CASSETTE(config, m_cassette);
+	m_cassette->set_formats(coco_cassette_formats);
+	m_cassette->set_default_state(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED);
+	m_cassette->set_interface("mc10_cass");
 
 	/* printer */
-	MCFG_DEVICE_ADD("printer", PRINTER, 0)
+	PRINTER(config, m_printer, 0);
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("20K").set_extra_options("4K");
@@ -545,10 +542,12 @@ MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(mc10_state::alice32)
 
-	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", M6803, XTAL(3'579'545))
-	MCFG_DEVICE_PROGRAM_MAP(alice32_mem)
-	MCFG_DEVICE_IO_MAP(mc10_io)
+	M6803(config, m_maincpu, XTAL(3'579'545));
+	m_maincpu->set_addrmap(AS_PROGRAM, &mc10_state::alice32_mem);
+	m_maincpu->in_p1_cb().set(FUNC(mc10_state::mc10_port1_r));
+	m_maincpu->out_p1_cb().set(FUNC(mc10_state::mc10_port1_w));
+	m_maincpu->in_p2_cb().set(FUNC(mc10_state::mc10_port2_r));
+	m_maincpu->out_p2_cb().set(FUNC(mc10_state::mc10_port2_w));
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -558,9 +557,9 @@ MACHINE_CONFIG_START(mc10_state::alice32)
 	MCFG_SCREEN_VISIBLE_AREA(00, 336-1, 00, 270-1)
 	MCFG_PALETTE_ADD("palette", 8)
 
-	MCFG_DEVICE_ADD("ef9345", EF9345, 0)
-	MCFG_EF9345_PALETTE("palette")
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("alice32_sl", mc10_state, alice32_scanline, "screen", 0, 10)
+	EF9345(config, m_ef9345, 0);
+	m_ef9345->set_palette_tag("palette");
+	TIMER(config, "alice32_sl").configure_scanline(FUNC(mc10_state::alice32_scanline), "screen", 0, 10);
 
 	/* sound hardware */
 	SPEAKER(config, "speaker").front_center();
@@ -568,13 +567,13 @@ MACHINE_CONFIG_START(mc10_state::alice32)
 	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
 	MCFG_SOUND_ROUTE(0, "dac", 1.0, DAC_VREF_POS_INPUT)
 
-	MCFG_CASSETTE_ADD("cassette")
-	MCFG_CASSETTE_FORMATS(alice32_cassette_formats)
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
-	MCFG_CASSETTE_INTERFACE("mc10_cass")
+	CASSETTE(config, m_cassette);
+	m_cassette->set_formats(alice32_cassette_formats);
+	m_cassette->set_default_state(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED);
+	m_cassette->set_interface("mc10_cass");
 
 	/* printer */
-	MCFG_DEVICE_ADD("printer", PRINTER, 0)
+	PRINTER(config, m_printer, 0);
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("24K").set_extra_options("8K");
@@ -586,8 +585,7 @@ MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(mc10_state::alice90)
 	alice32(config);
-	MCFG_DEVICE_MODIFY("maincpu")
-	MCFG_DEVICE_PROGRAM_MAP(alice90_mem)
+	m_maincpu->set_addrmap(AS_PROGRAM, &mc10_state::alice90_mem);
 
 	m_ram->set_default_size("32K");
 

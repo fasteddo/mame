@@ -334,12 +334,10 @@ Notes:
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6502/m6502.h"
 #include "cpu/z80/z80.h"
-#include "cpu/mcs51/mcs51.h"
 #include "cpu/m6805/m68705.h"
 #include "sound/2203intf.h"
 #include "sound/3812intf.h"
 #include "sound/okim6295.h"
-#include "screen.h"
 #include "speaker.h"
 
 
@@ -350,11 +348,11 @@ WRITE16_MEMBER(dec0_state::dec0_control_w)
 	switch (offset << 1)
 	{
 		case 0: /* Playfield & Sprite priority */
-			dec0_priority_w(space, 0, data, mem_mask);
+			priority_w(space, 0, data, mem_mask);
 			break;
 
 		case 2: /* DMA flag */
-			dec0_update_sprites_w(space, 0, 0, mem_mask);
+			m_spriteram->copy();
 			break;
 
 		case 4: /* 6502 sound cpu */
@@ -399,7 +397,7 @@ WRITE16_MEMBER(dec0_automat_state::automat_control_w)
 			break;
 
 		case 12: /* DMA flag */
-			//dec0_update_sprites_w(space, 0, 0, mem_mask);
+			//m_spriteram->copy();
 			break;
 #if 0
 		case 8: /* Interrupt ack (VBL - IRQ 6) */
@@ -625,7 +623,7 @@ void dec0_state::slyspy_map(address_map &map)
 	map(0x308000, 0x3087ff).ram().share("spriteram");   /* Sprites */
 	map(0x310000, 0x3107ff).ram().w(m_palette, FUNC(palette_device::write16)).share("palette");
 	map(0x314001, 0x314001).w(m_soundlatch, FUNC(generic_latch_8_device::write));
-	map(0x314002, 0x314003).w(FUNC(dec0_state::dec0_priority_w));
+	map(0x314002, 0x314003).w(FUNC(dec0_state::priority_w));
 	map(0x314008, 0x31400f).r(FUNC(dec0_state::slyspy_controls_r));
 	map(0x31c000, 0x31c00f).r(FUNC(dec0_state::slyspy_protection_r)).nopw();
 }
@@ -637,7 +635,7 @@ void dec0_state::midres_map(address_map &map)
 	map(0x100000, 0x103fff).ram().share("ram");
 	map(0x120000, 0x1207ff).ram().share("spriteram");
 	map(0x140000, 0x1407ff).w(m_palette, FUNC(palette_device::write16)).share("palette");
-	map(0x160000, 0x160001).w(FUNC(dec0_state::dec0_priority_w));
+	map(0x160000, 0x160001).w(FUNC(dec0_state::priority_w));
 	map(0x180000, 0x18000f).r(FUNC(dec0_state::midres_controls_r));
 	map(0x180008, 0x18000f).nopw(); /* ?? watchdog ?? */
 	map(0x1a0001, 0x1a0001).w(m_soundlatch, FUNC(generic_latch_8_device::write));
@@ -665,7 +663,7 @@ void dec0_state::midres_map(address_map &map)
 void dec0_state::midresb_map(address_map &map)
 {
 	midres_map(map);
-	map(0x160010, 0x160011).w(FUNC(dec0_state::dec0_priority_w));
+	map(0x160010, 0x160011).w(FUNC(dec0_state::priority_w));
 	map(0x180000, 0x18000f).r(FUNC(dec0_state::dec0_controls_r));
 	map(0x180012, 0x180013).noprw();
 	map(0x180014, 0x180015).w(FUNC(dec0_state::midres_sound_w));
@@ -814,7 +812,7 @@ void dec0_automat_state::automat_map(address_map &map)
 
 	// video regs are moved to here..
 	map(0x400000, 0x400007).w(FUNC(dec0_automat_state::automat_scroll_w));
-	map(0x400008, 0x400009).w(FUNC(dec0_automat_state::dec0_priority_w));
+	map(0x400008, 0x400009).w(FUNC(dec0_automat_state::priority_w));
 
 	map(0x500000, 0x500001).nopw(); // ???
 
@@ -1516,8 +1514,8 @@ static const gfx_layout charlayout =
 	RGN_FRAC(1,4),
 	4,      /* 4 bits per pixel  */
 	{ RGN_FRAC(0,4), RGN_FRAC(2,4), RGN_FRAC(1,4), RGN_FRAC(3,4) },
-	{ 0, 1, 2, 3, 4, 5, 6, 7 },
-	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
+	{ STEP8(0,1) },
+	{ STEP8(0,8) },
 	8*8 /* every char takes 8 consecutive bytes */
 };
 
@@ -1527,10 +1525,8 @@ static const gfx_layout tilelayout =
 	RGN_FRAC(1,4),
 	4,
 	{ RGN_FRAC(1,4), RGN_FRAC(3,4), RGN_FRAC(0,4), RGN_FRAC(2,4) },
-	{ 16*8+0, 16*8+1, 16*8+2, 16*8+3, 16*8+4, 16*8+5, 16*8+6, 16*8+7,
-			0, 1, 2, 3, 4, 5, 6, 7 },
-	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8,
-			8*8, 9*8, 10*8, 11*8, 12*8, 13*8, 14*8, 15*8 },
+	{ STEP8(16*8,1), STEP8(0,1) },
+	{ STEP16(0,8) },
 	16*16
 };
 
@@ -1540,9 +1536,8 @@ static const gfx_layout automat_spritelayout =
 	RGN_FRAC(1,4),
 	4,
 	{ RGN_FRAC(1,4), RGN_FRAC(3,4), RGN_FRAC(0,4), RGN_FRAC(2,4) },
-	{ 16*8+7, 16*8+6,16*8+5,16*8+4,16*8+3,16*8+2,16*8+1,16*8+0,7,6,5,4,3,2,1,0},
-	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8,
-			8*8, 9*8, 10*8, 11*8, 12*8, 13*8, 14*8, 15*8 },
+	{ STEP8(16*8+7,-1), STEP8(7,-1) },
+	{ STEP16(0,8) },
 	16*16
 };
 
@@ -1603,80 +1598,85 @@ GFXDECODE_END
 
 
 // DECO video CRTC, pixel clock is unverified (actually 24MHz/4?)
-#define MCFG_SCREEN_RAW_PARAMS_DATA_EAST \
-		MCFG_SCREEN_RAW_PARAMS(XTAL(12'000'000)/2,384,0,256,272,8,248)
+void dec0_state::set_screen_raw_params_data_east(machine_config &config)
+{
+	m_screen->set_raw(XTAL(12'000'000)/2,384,0,256,272,8,248);
+}
 
-
-
-MACHINE_CONFIG_START(dec0_state::dec0_base)
-
+void dec0_state::dec0_base(machine_config &config)
+{
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	//MCFG_SCREEN_REFRESH_RATE(57.41)
-	//MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS_DATA_EAST
-	//MCFG_SCREEN_SIZE(32*8, 32*8)
-	//MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
-	//MCFG_SCREEN_UPDATE_DRIVER differs per game
-	MCFG_SCREEN_PALETTE("palette")
+	BUFFERED_SPRITERAM16(config, m_spriteram);
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_dec0)
-	MCFG_PALETTE_ADD("palette", 1024)
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	set_screen_raw_params_data_east(config);
+	//m_screen->set_refresh_hz(57.41);
+	//m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(529)); /* 57.41 Hz, 529us Vblank */
+	//m_screen->set_size(32*8, 32*8);
+	//m_screen->set_visarea(0*8, 32*8-1, 1*8, 31*8-1);
+	//screen update callback differs per game
+	m_screen->set_palette(m_palette);
 
-	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 0, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
-	MCFG_DEVICE_ADD("tilegen2", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 1, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
-	MCFG_DEVICE_ADD("tilegen3", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 2, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_dec0);
+	PALETTE(config, m_palette);
 
-	MCFG_DEVICE_ADD("spritegen", DECO_MXC06, 0)
-	MCFG_DECO_MXC06_GFX_REGION(3)
-	MCFG_DECO_MXC06_GFXDECODE("gfxdecode")
+	DECO_BAC06(config, m_tilegen[0], 0);
+	m_tilegen[0]->set_gfx_region_wide(0, 0, 0);
+	m_tilegen[0]->set_gfxdecode_tag("gfxdecode");
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("audiocpu", INPUT_LINE_NMI))
-MACHINE_CONFIG_END
+	DECO_BAC06(config, m_tilegen[1], 0);
+	m_tilegen[1]->set_gfx_region_wide(0, 1, 0);
+	m_tilegen[1]->set_gfxdecode_tag("gfxdecode");
 
-MACHINE_CONFIG_START(dec0_state::dec0)
+	DECO_BAC06(config, m_tilegen[2], 0);
+	m_tilegen[2]->set_gfx_region_wide(0, 2, 0);
+	m_tilegen[2]->set_gfxdecode_tag("gfxdecode");
+
+	DECO_MXC06(config, m_spritegen, 0);
+	m_spritegen->set_gfx_region(3);
+	m_spritegen->set_gfxdecode_tag("gfxdecode");
+
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, INPUT_LINE_NMI);
+}
+
+void dec0_state::dec0(machine_config &config)
+{
 	dec0_base(config);
 
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", M68000, XTAL(20'000'000) / 2)
-	MCFG_DEVICE_PROGRAM_MAP(dec0_map)
-	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert) /* VBL */
+	M68000(config, m_maincpu, XTAL(20'000'000) / 2);
+	m_maincpu->set_addrmap(AS_PROGRAM, &dec0_state::dec0_map);
+	m_maincpu->set_vblank_int("screen", FUNC(dec0_state::irq6_line_assert)); /* VBL */
 
-	MCFG_DEVICE_ADD("audiocpu", M6502, XTAL(12'000'000) / 8)
-	MCFG_DEVICE_PROGRAM_MAP(dec0_s_map)
+	M6502(config, m_audiocpu, XTAL(12'000'000) / 8);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &dec0_state::dec0_s_map);
 
 	/* video hardware */
 	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0)
 
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_FORMAT(XBGR)
+	m_palette->set_format(palette_device::xBGR_888, 1024);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_DEVICE_ADD("ym1", YM2203, XTAL(12'000'000) / 8)
-	MCFG_SOUND_ROUTE(0, "mono", 0.90)
-	MCFG_SOUND_ROUTE(1, "mono", 0.90)
-	MCFG_SOUND_ROUTE(2, "mono", 0.90)
-	MCFG_SOUND_ROUTE(3, "mono", 0.35)
+	ym2203_device &ym1(YM2203(config, "ym1", XTAL(12'000'000) / 8));
+	ym1.add_route(0, "mono", 0.90);
+	ym1.add_route(1, "mono", 0.90);
+	ym1.add_route(2, "mono", 0.90);
+	ym1.add_route(3, "mono", 0.35);
 
-	MCFG_DEVICE_ADD("ym2", YM3812, XTAL(12'000'000) / 4)
-	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
+	ym3812_device &ym2(YM3812(config, "ym2", XTAL(12'000'000) / 4));
+	ym2.irq_handler().set_inputline(m_audiocpu, 0);
+	ym2.add_route(ALL_OUTPUTS, "mono", 0.80);
 
-	MCFG_DEVICE_ADD("oki", OKIM6295, XTAL(20'000'000) / 2 / 10, okim6295_device::PIN7_HIGH)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
-MACHINE_CONFIG_END
+	okim6295_device &oki(OKIM6295(config, "oki", XTAL(20'000'000) / 2 / 10, okim6295_device::PIN7_HIGH));
+	oki.add_route(ALL_OUTPUTS, "mono", 0.80);
+}
 
 
-MACHINE_CONFIG_START(dec0_state::dec1)
+void dec0_state::dec1(machine_config &config)
+{
 	dec0_base(config);
 	/* basic machine hardware */
 	/* maincpu and audiocpu clocks and address maps differ per game */
@@ -1684,25 +1684,24 @@ MACHINE_CONFIG_START(dec0_state::dec1)
 	/* video hardware */
 	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
 
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	m_palette->set_format(palette_device::xBGR_444, 1024);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_DEVICE_ADD("ym1", YM2203, XTAL(12'000'000)/8) /* verified on pcb */
-	MCFG_SOUND_ROUTE(0, "mono", 0.90)
-	MCFG_SOUND_ROUTE(1, "mono", 0.90)
-	MCFG_SOUND_ROUTE(2, "mono", 0.90)
-	MCFG_SOUND_ROUTE(3, "mono", 0.35)
+	ym2203_device &ym1(YM2203(config, "ym1", XTAL(12'000'000)/8)); /* verified on pcb */
+	ym1.add_route(0, "mono", 0.90);
+	ym1.add_route(1, "mono", 0.90);
+	ym1.add_route(2, "mono", 0.90);
+	ym1.add_route(3, "mono", 0.35);
 
-	MCFG_DEVICE_ADD("ym2", YM3812, XTAL(12'000'000)/4) /* verified on pcb */
-	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", 1))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
+	ym3812_device &ym2(YM3812(config, "ym2", XTAL(12'000'000)/4)); /* verified on pcb */
+	ym2.irq_handler().set_inputline(m_audiocpu, 1);
+	ym2.add_route(ALL_OUTPUTS, "mono", 0.80);
 
-	MCFG_DEVICE_ADD("oki", OKIM6295, XTAL(12'000'000)/12, okim6295_device::PIN7_HIGH) /* verified on pcb */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
-MACHINE_CONFIG_END
+	okim6295_device &oki(OKIM6295(config, "oki", XTAL(12'000'000)/12, okim6295_device::PIN7_HIGH)); /* verified on pcb */
+	oki.add_route(ALL_OUTPUTS, "mono", 0.80);
+}
 
 
 WRITE8_MEMBER(dec0_automat_state::sound_bankswitch_w)
@@ -1733,62 +1732,64 @@ WRITE_LINE_MEMBER(dec0_automat_state::msm2_vclk_cb)
 }
 
 
-MACHINE_CONFIG_START(dec0_automat_state::automat)
-
+void dec0_automat_state::automat(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", M68000, 10000000)
-	MCFG_DEVICE_PROGRAM_MAP(automat_map)
-	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_hold)/* VBL */
+	M68000(config, m_maincpu, 10000000);
+	m_maincpu->set_addrmap(AS_PROGRAM, &dec0_automat_state::automat_map);
+	m_maincpu->set_vblank_int("screen", FUNC(dec0_state::irq6_line_hold)); /* VBL */
 
-	MCFG_DEVICE_ADD("audiocpu", Z80, 3000000)// ?
-	MCFG_DEVICE_PROGRAM_MAP(automat_s_map)
+	Z80(config, m_audiocpu, 3000000); // ?
+	m_audiocpu->set_addrmap(AS_PROGRAM, &dec0_automat_state::automat_s_map);
 
 	/* video hardware */
 	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS_DATA_EAST
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_automat_state, screen_update_automat)
-	MCFG_SCREEN_PALETTE("palette")
+	BUFFERED_SPRITERAM16(config, m_spriteram);
 
-	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 0, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
-	MCFG_DEVICE_ADD("tilegen2", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 1, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
-	MCFG_DEVICE_ADD("tilegen3", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 2, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+//  m_screen->set_refresh_hz(57.41);
+//  m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(529)); /* 57.41 Hz, 529us Vblank */
+	set_screen_raw_params_data_east(config);
+	m_screen->set_screen_update(FUNC(dec0_automat_state::screen_update_automat));
+	m_screen->set_palette(m_palette);
 
-	MCFG_DEVICE_ADD("spritegen", DECO_MXC06, 0)
-	MCFG_DECO_MXC06_GFX_REGION(3)
-	MCFG_DECO_MXC06_GFXDECODE("gfxdecode")
+	DECO_BAC06(config, m_tilegen[0], 0);
+	m_tilegen[0]->set_gfx_region_wide(0, 0, 0);
+	m_tilegen[0]->set_gfxdecode_tag("gfxdecode");
 
-	MCFG_PALETTE_ADD("palette", 1024)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	DECO_BAC06(config, m_tilegen[1], 0);
+	m_tilegen[1]->set_gfx_region_wide(0, 1, 0);
+	m_tilegen[1]->set_gfxdecode_tag("gfxdecode");
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_automat)
+	DECO_BAC06(config, m_tilegen[2], 0);
+	m_tilegen[2]->set_gfx_region_wide(0, 2, 0);
+	m_tilegen[2]->set_gfxdecode_tag("gfxdecode");
+
+	DECO_MXC06(config, m_spritegen, 0);
+	m_spritegen->set_gfx_region(3);
+	m_spritegen->set_gfxdecode_tag("gfxdecode");
+
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 1024);
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_automat);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("audiocpu", 0))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, 0);
 
-	MCFG_DEVICE_ADD("2203a", YM2203, 1250000)
-	MCFG_SOUND_ROUTE(0, "mono", 0.90)
-	MCFG_SOUND_ROUTE(1, "mono", 0.90)
-	MCFG_SOUND_ROUTE(2, "mono", 0.90)
-	MCFG_SOUND_ROUTE(3, "mono", 0.35)
+	ym2203_device &ym2203a(YM2203(config, "2203a", 1250000));
+	ym2203a.add_route(0, "mono", 0.90);
+	ym2203a.add_route(1, "mono", 0.90);
+	ym2203a.add_route(2, "mono", 0.90);
+	ym2203a.add_route(3, "mono", 0.35);
 
-	MCFG_DEVICE_ADD("2203b", YM2203, 1250000)
-	MCFG_SOUND_ROUTE(0, "mono", 0.90)
-	MCFG_SOUND_ROUTE(1, "mono", 0.90)
-	MCFG_SOUND_ROUTE(2, "mono", 0.90)
-	MCFG_SOUND_ROUTE(3, "mono", 0.35)
+	ym2203_device &ym2203b(YM2203(config, "2203b", 1250000));
+	ym2203b.add_route(0, "mono", 0.90);
+	ym2203b.add_route(1, "mono", 0.90);
+	ym2203b.add_route(2, "mono", 0.90);
+	ym2203b.add_route(3, "mono", 0.35);
 
 	LS157(config, m_adpcm_select[0], 0);
 	m_adpcm_select[0]->out_callback().set("msm1", FUNC(msm5205_device::data_w));
@@ -1796,71 +1797,74 @@ MACHINE_CONFIG_START(dec0_automat_state::automat)
 	LS157(config, m_adpcm_select[1], 0);
 	m_adpcm_select[1]->out_callback().set("msm2", FUNC(msm5205_device::data_w));
 
-	MCFG_DEVICE_ADD("msm1", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(*this, dec0_automat_state, msm1_vclk_cb))
-	MCFG_MSM5205_PRESCALER_SELECTOR(S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	msm5205_device &msm1(MSM5205(config, "msm1", 384000));
+	msm1.vck_legacy_callback().set(FUNC(dec0_automat_state::msm1_vclk_cb));
+	msm1.set_prescaler_selector(msm5205_device::S96_4B);
+	msm1.add_route(ALL_OUTPUTS, "mono", 1.0);
 
-	MCFG_DEVICE_ADD("msm2", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(*this, dec0_automat_state, msm2_vclk_cb))
-	MCFG_MSM5205_PRESCALER_SELECTOR(S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	msm5205_device &msm2(MSM5205(config, "msm2", 384000));
+	msm2.vck_legacy_callback().set(FUNC(dec0_automat_state::msm2_vclk_cb));
+	msm2.set_prescaler_selector(msm5205_device::S96_4B);
+	msm2.add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
 // this seems very similar to the automat bootleg
-MACHINE_CONFIG_START(dec0_automat_state::secretab)
-
+void dec0_automat_state::secretab(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", M68000, XTAL(20'000'000)/2) /* verified on pcb (20MHZ OSC) 68000P12 running at 10Mhz */
-	MCFG_DEVICE_PROGRAM_MAP(secretab_map)
-	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_hold)/* VBL */
+	M68000(config, m_maincpu, XTAL(20'000'000)/2); /* verified on pcb (20MHZ OSC) 68000P12 running at 10Mhz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &dec0_automat_state::secretab_map);
+	m_maincpu->set_vblank_int("screen", FUNC(dec0_state::irq6_line_hold)); /* VBL */
 
-	MCFG_DEVICE_ADD("audiocpu", Z80, 3000000)// ?
-	MCFG_DEVICE_PROGRAM_MAP(secretab_s_map)
+	Z80(config, m_audiocpu, 3000000); // ?
+	m_audiocpu->set_addrmap(AS_PROGRAM, &dec0_automat_state::secretab_s_map);
 
 	/* video hardware */
 	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS_DATA_EAST
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_automat_state, screen_update_secretab)
-	MCFG_SCREEN_PALETTE("palette")
+	BUFFERED_SPRITERAM16(config, m_spriteram);
 
-	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 0, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
-	MCFG_DEVICE_ADD("tilegen2", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 1, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
-	MCFG_DEVICE_ADD("tilegen3", DECO_BAC06, 0)
-	MCFG_DECO_BAC06_GFX_REGION_WIDE(0, 2, 0)
-	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+//  m_screen->set_refresh_hz(57.41);
+//  m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(529)); /* 57.41 Hz, 529us Vblank */
+	set_screen_raw_params_data_east(config);
+	m_screen->set_screen_update(FUNC(dec0_automat_state::screen_update_secretab));
+	m_screen->set_palette(m_palette);
 
-	MCFG_DEVICE_ADD("spritegen", DECO_MXC06, 0)
-	MCFG_DECO_MXC06_GFX_REGION(3)
-	MCFG_DECO_MXC06_GFXDECODE("gfxdecode")
+	DECO_BAC06(config, m_tilegen[0], 0);
+	m_tilegen[0]->set_gfx_region_wide(0, 0, 0);
+	m_tilegen[0]->set_gfxdecode_tag("gfxdecode");
 
-	MCFG_PALETTE_ADD("palette", 1024)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	DECO_BAC06(config, m_tilegen[1], 0);
+	m_tilegen[1]->set_gfx_region_wide(0, 1, 0);
+	m_tilegen[1]->set_gfxdecode_tag("gfxdecode");
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_secretab)
+	DECO_BAC06(config, m_tilegen[2], 0);
+	m_tilegen[2]->set_gfx_region_wide(0, 2, 0);
+	m_tilegen[2]->set_gfxdecode_tag("gfxdecode");
+
+	DECO_MXC06(config, m_spritegen, 0);
+	m_spritegen->set_gfx_region(3);
+	m_spritegen->set_gfxdecode_tag("gfxdecode");
+
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 1024);
+
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_secretab);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("audiocpu", 0))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, 0);
 
-	MCFG_DEVICE_ADD("2203a", YM2203, 1250000)
-	MCFG_SOUND_ROUTE(0, "mono", 0.90)
-	MCFG_SOUND_ROUTE(1, "mono", 0.90)
-	MCFG_SOUND_ROUTE(2, "mono", 0.90)
-	MCFG_SOUND_ROUTE(3, "mono", 0.35)
+	ym2203_device &ym2203a(YM2203(config, "2203a", 1250000));
+	ym2203a.add_route(0, "mono", 0.90);
+	ym2203a.add_route(1, "mono", 0.90);
+	ym2203a.add_route(2, "mono", 0.90);
+	ym2203a.add_route(3, "mono", 0.35);
 
-	MCFG_DEVICE_ADD("ym3812", YM3812, 2500000)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
+	ym3812_device &ym3812(YM3812(config, "ym3812", 2500000));
+	ym3812.add_route(ALL_OUTPUTS, "mono", 0.80);
 
 	LS157(config, m_adpcm_select[0], 0);
 	m_adpcm_select[0]->out_callback().set("msm1", FUNC(msm5205_device::data_w));
@@ -1868,120 +1872,118 @@ MACHINE_CONFIG_START(dec0_automat_state::secretab)
 	LS157(config, m_adpcm_select[1], 0);
 	m_adpcm_select[1]->out_callback().set("msm2", FUNC(msm5205_device::data_w));
 
-	MCFG_DEVICE_ADD("msm1", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(*this, dec0_automat_state, msm1_vclk_cb))
-	MCFG_MSM5205_PRESCALER_SELECTOR(S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	msm5205_device &msm1(MSM5205(config, "msm1", 384000));
+	msm1.vck_legacy_callback().set(FUNC(dec0_automat_state::msm1_vclk_cb));
+	msm1.set_prescaler_selector(msm5205_device::S96_4B);
+	msm1.add_route(ALL_OUTPUTS, "mono", 1.0);
 
-	MCFG_DEVICE_ADD("msm2", MSM5205, 384000)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(*this, dec0_automat_state, msm2_vclk_cb))
-	MCFG_MSM5205_PRESCALER_SELECTOR(S96_4B)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
+	msm5205_device &msm2(MSM5205(config, "msm2", 384000));
+	msm2.vck_legacy_callback().set(FUNC(dec0_automat_state::msm2_vclk_cb));
+	msm2.set_prescaler_selector(msm5205_device::S96_4B);
+	msm2.add_route(ALL_OUTPUTS, "mono", 1.0);
+}
 
-
-MACHINE_CONFIG_START(dec0_state::hbarrel)
+void dec0_state::hbarrel(machine_config &config)
+{
 	dec0(config);
 
-	MCFG_DEVICE_ADD("mcu", I8751, XTAL(8'000'000))
-	MCFG_MCS51_PORT_P0_IN_CB(READ8(*this, dec0_state, dec0_mcu_port0_r))
-	MCFG_MCS51_PORT_P0_OUT_CB(WRITE8(*this, dec0_state, dec0_mcu_port0_w))
-	MCFG_MCS51_PORT_P1_OUT_CB(WRITE8(*this, dec0_state, dec0_mcu_port1_w))
-	MCFG_MCS51_PORT_P2_OUT_CB(WRITE8(*this, dec0_state, dec0_mcu_port2_w))
-	MCFG_MCS51_PORT_P3_OUT_CB(WRITE8(*this, dec0_state, dec0_mcu_port3_w))
+	i8751_device &mcu(I8751(config, m_mcu, XTAL(8'000'000)));
+	mcu.port_in_cb<0>().set(FUNC(dec0_state::dec0_mcu_port0_r));
+	mcu.port_out_cb<0>().set(FUNC(dec0_state::dec0_mcu_port0_w));
+	mcu.port_out_cb<1>().set(FUNC(dec0_state::dec0_mcu_port1_w));
+	mcu.port_out_cb<2>().set(FUNC(dec0_state::dec0_mcu_port2_w));
+	mcu.port_out_cb<3>().set(FUNC(dec0_state::dec0_mcu_port3_w));
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_hbarrel)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_hbarrel));
+}
 
-MACHINE_CONFIG_START(dec0_state::baddudes)
+void dec0_state::baddudes(machine_config &config)
+{
 	dec0(config);
 
-	MCFG_DEVICE_ADD("mcu", I8751, XTAL(8'000'000))
-	MCFG_MCS51_PORT_P0_IN_CB(READ8(*this, dec0_state, dec0_mcu_port0_r))
-	MCFG_MCS51_PORT_P0_OUT_CB(WRITE8(*this, dec0_state, dec0_mcu_port0_w))
-	MCFG_MCS51_PORT_P1_OUT_CB(WRITE8(*this, dec0_state, dec0_mcu_port1_w))
-	MCFG_MCS51_PORT_P2_OUT_CB(WRITE8(*this, dec0_state, dec0_mcu_port2_w))
-	MCFG_MCS51_PORT_P3_OUT_CB(WRITE8(*this, dec0_state, dec0_mcu_port3_w))
+	i8751_device &mcu(I8751(config, m_mcu, XTAL(8'000'000)));
+	mcu.port_in_cb<0>().set(FUNC(dec0_state::dec0_mcu_port0_r));
+	mcu.port_out_cb<0>().set(FUNC(dec0_state::dec0_mcu_port0_w));
+	mcu.port_out_cb<1>().set(FUNC(dec0_state::dec0_mcu_port1_w));
+	mcu.port_out_cb<2>().set(FUNC(dec0_state::dec0_mcu_port2_w));
+	mcu.port_out_cb<3>().set(FUNC(dec0_state::dec0_mcu_port3_w));
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_baddudes)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_baddudes));
+}
 
-MACHINE_CONFIG_START(dec0_state::drgninjab)
-	dec0(config);
-
-	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_baddudes)
-MACHINE_CONFIG_END
-
-MACHINE_CONFIG_START(dec0_state::birdtry)
+void dec0_state::drgninjab(machine_config &config)
+{
 	dec0(config);
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_birdtry)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_baddudes));
+}
 
-MACHINE_CONFIG_START(dec0_state::robocop)
+void dec0_state::birdtry(machine_config &config)
+{
 	dec0(config);
 
-	MCFG_DEVICE_MODIFY("maincpu")
-	MCFG_DEVICE_PROGRAM_MAP(robocop_map)
+	/* video hardware */
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_birdtry));
+}
+
+void dec0_state::robocop(machine_config &config)
+{
+	dec0(config);
+
+	m_maincpu->set_addrmap(AS_PROGRAM, &dec0_state::robocop_map);
 
 	H6280(config, m_subcpu, XTAL(21'477'272) / 16);
 	m_subcpu->set_addrmap(AS_PROGRAM, &dec0_state::robocop_sub_map);
 	m_subcpu->add_route(ALL_OUTPUTS, "mono", 0); // internal sound unused
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(3000))  /* Interleave between HuC6280 & 68000 */
+	config.m_minimum_quantum = attotime::from_hz(3000);  /* Interleave between HuC6280 & 68000 */
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_robocop)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_robocop));
+}
 
-MACHINE_CONFIG_START(dec0_state::robocopb)
+void dec0_state::robocopb(machine_config &config)
+{
 	dec0(config);
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_robocop)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_robocop));
+}
 
-MACHINE_CONFIG_START(dec0_state::hippodrm)
+void dec0_state::hippodrm(machine_config &config)
+{
 	dec0(config);
 
-	MCFG_DEVICE_MODIFY("maincpu")
-	MCFG_DEVICE_PROGRAM_MAP(hippodrm_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &dec0_state::hippodrm_map);
 
 	H6280(config, m_subcpu, XTAL(21'477'272) / 16);
 	m_subcpu->set_addrmap(AS_PROGRAM, &dec0_state::hippodrm_sub_map);
 	m_subcpu->add_route(ALL_OUTPUTS, "mono", 0); // internal sound unused
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(300))   /* Interleave between H6280 & 68000 */
+	config.m_minimum_quantum = attotime::from_hz(300);   /* Interleave between H6280 & 68000 */
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_hippodrm)
-	MCFG_SCREEN_VBLANK_CALLBACK(INPUTLINE("sub", 1)) /* VBL */
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_hippodrm));
+	m_screen->screen_vblank().set_inputline(m_subcpu, 1); /* VBL */
+}
 
-MACHINE_CONFIG_START(dec0_state::ffantasybl)
+void dec0_state::ffantasybl(machine_config &config)
+
+{
 	dec0(config);
 
 //  H6280(config, m_subcpu, XTAL(21'477'272) / 16);
 //  m_subcpu->set_addrmap(AS_PROGRAM, &dec0_state::hippodrm_sub_map);
 //  m_subcpu->add_route(ALL_OUTPUTS, "mono", 0); // internal sound unused
 
-//  MCFG_QUANTUM_TIME(attotime::from_hz(300))   /* Interleave between H6280 & 68000 */
+//  config.m_minimum_quantum = attotime::from_hz(300);   /* Interleave between H6280 & 68000 */
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_hippodrm)
-MACHINE_CONFIG_END
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_hippodrm));
+}
 
 MACHINE_RESET_MEMBER(dec0_state,slyspy)
 {
@@ -1992,13 +1994,14 @@ MACHINE_RESET_MEMBER(dec0_state,slyspy)
 	m_sndprotect->set_bank(m_slyspy_sound_state);
 }
 
-MACHINE_CONFIG_START(dec0_state::slyspy)
+void dec0_state::slyspy(machine_config &config)
+{
 	dec1(config);
 
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", M68000, XTAL(20'000'000)/2) /* verified on pcb (20MHZ OSC) 68000P12 running at 10Mhz */
-	MCFG_DEVICE_PROGRAM_MAP(slyspy_map)
-	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_hold) /* VBL, apparently it auto-acks */
+	M68000(config, m_maincpu, XTAL(20'000'000)/2); /* verified on pcb (20MHZ OSC) 68000P12 running at 10Mhz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &dec0_state::slyspy_map);
+	m_maincpu->set_vblank_int("screen", FUNC(dec0_state::irq6_line_hold)); /* VBL, apparently it auto-acks */
 
 	// TODO: both games doesn't like /3 here, MT #06740
 	h6280_device &audiocpu(H6280(config, m_audiocpu, XTAL(12'000'000)/2/2)); /* verified on pcb (6Mhz is XIN on pin 10 of H6280) */
@@ -2009,62 +2012,59 @@ MACHINE_CONFIG_START(dec0_state::slyspy)
 	ADDRESS_MAP_BANK(config, "sndprotect").set_map(&dec0_state::slyspy_sound_protection_map).set_options(ENDIANNESS_LITTLE, 8, 21, 0x80000);
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_slyspy)
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_slyspy));
 
 	MCFG_MACHINE_RESET_OVERRIDE(dec0_state,slyspy)
-MACHINE_CONFIG_END
+}
 
-MACHINE_CONFIG_START(dec0_state::midres)
+void dec0_state::midres(machine_config &config)
+{
 	dec1(config);
 
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", M68000, XTAL(20'000'000)/2) /* verified on pcb (20MHZ OSC) 68000P12 running at 10Mhz */
-	MCFG_DEVICE_PROGRAM_MAP(midres_map)
-	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_hold)/* VBL */
+	M68000(config, m_maincpu, XTAL(20'000'000)/2); /* verified on pcb (20MHZ OSC) 68000P12 running at 10Mhz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &dec0_state::midres_map);
+	m_maincpu->set_vblank_int("screen", FUNC(dec0_state::irq6_line_hold)); /* VBL */
 
 	h6280_device &audiocpu(H6280(config, m_audiocpu, XTAL(24'000'000)/4/3)); /* verified on pcb (6Mhz is XIN on pin 10 of H6280, verified on pcb */
 	audiocpu.set_addrmap(AS_PROGRAM, &dec0_state::midres_s_map);
 	audiocpu.add_route(ALL_OUTPUTS, "mono", 0); // internal sound unused
 
 	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_midres)
+	m_screen->set_screen_update(FUNC(dec0_state::screen_update_midres));
 
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_midres)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_midres);
+}
 
-MACHINE_CONFIG_START(dec0_state::midresb)
+void dec0_state::midresb(machine_config &config)
+{
 	midres(config);
-	MCFG_DEVICE_MODIFY("maincpu")
-	MCFG_DEVICE_PROGRAM_MAP(midresb_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &dec0_state::midresb_map);
 
-	MCFG_DEVICE_REPLACE("audiocpu", M6502, 1500000 )
-	MCFG_DEVICE_PROGRAM_MAP(dec0_s_map)
+	M6502(config.replace(), m_audiocpu, 1500000);
+	m_audiocpu->set_addrmap(AS_PROGRAM, &dec0_state::dec0_s_map);
 
-	MCFG_DEVICE_ADD("mcu", M68705R3, XTAL(3'579'545))
+	M68705R3(config, m_mcu, XTAL(3'579'545));
 
-	MCFG_DEVICE_MODIFY("ym2")
-	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
+	subdevice<ym3812_device>("ym2")->irq_handler().set_inputline(m_audiocpu, 0);
+	subdevice<ym3812_device>("ym2")->add_route(ALL_OUTPUTS, "mono", 0.80);
 
 	// bootleg doesn't seem to support row/col scroll (or enable is different)
-//  MCFG_DEVICE_MODIFY("tilegen1")
-//  MCFG_BAC06_BOOTLEG_DISABLE_16x16
-//  MCFG_BAC06_BOOTLEG_DISABLE_RC_SCROLL
-	MCFG_DEVICE_MODIFY("tilegen2")
-//  MCFG_BAC06_BOOTLEG_DISABLE_8x8
-	MCFG_BAC06_BOOTLEG_DISABLE_RC_SCROLL
-	MCFG_DEVICE_MODIFY("tilegen3")
-//  MCFG_BAC06_BOOTLEG_DISABLE_8x8
-	MCFG_BAC06_BOOTLEG_DISABLE_RC_SCROLL
+//  m_tilegen[0]->disable_16x16();
+//  m_tilegen[0]->disable_rc_scroll();
 
-MACHINE_CONFIG_END
+//  m_tilegen[1]->disable_8x8();
+	m_tilegen[1]->disable_rc_scroll();
 
-MACHINE_CONFIG_START(dec0_state::midresbj)
+//  m_tilegen[2]->disable_8x8();
+	m_tilegen[2]->disable_rc_scroll();
+}
+
+void dec0_state::midresbj(machine_config &config)
+{
 	midresb(config);
-	MCFG_DEVICE_REMOVE("mcu")
-MACHINE_CONFIG_END
+	config.device_remove("mcu");
+}
 
 /******************************************************************************/
 
@@ -2363,7 +2363,7 @@ ROM_START( drgninjab2 )
 	ROM_LOAD( "a15.7b",   0x8000, 0x8000, CRC(82007af2) SHA1(f0db1b1dab199df402a7590e56d4d5ab4baca803) ) // 99.612427%
 
 	ROM_REGION( 0x1000, "mcu", 0 )  /* 68705 microcontroller */
-	ROM_LOAD( "mc68705r3p",     0x0000, 0x1000, NO_DUMP )
+	ROM_LOAD( "68705r3.0m",     0x0000, 0x1000, CRC(34bc5e7f) SHA1(7231dd7eb9b5152a287e1bcceb3c3a0b35f441af) )
 
 	ROM_REGION( 0x10000, "gfx1", 0 ) /* chars */
 	ROM_LOAD( "a22.9m",  0x00000, 0x08000, CRC(6791bc20) SHA1(7240b2688cda04ee9ea331472a84fbffc85b8e90) ) // 99.996948%
@@ -3797,7 +3797,7 @@ GAME( 1988, drgninjab,  baddudes, drgninjab,  drgninja,   dec0_state, init_drgni
 GAME( 1989, midresb,    midres,   midresb,    midresb,    dec0_state, init_midresb,    ROT0, "bootleg", "Midnight Resistance (bootleg with 68705)", MACHINE_SUPPORTS_SAVE ) // need to hook up 68705? (probably unused)
 GAME( 1989, midresbj,   midres,   midresbj,   midresb,    dec0_state, init_midresb,    ROT0, "bootleg", "Midnight Resistance (Joystick bootleg)", MACHINE_SUPPORTS_SAVE )
 GAME( 1989, ffantasybl, hippodrm, ffantasybl, ffantasybl, dec0_state, init_ffantasybl, ROT0, "bootleg", "Fighting Fantasy (bootleg with 68705)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE | MACHINE_NOT_WORKING ) // 68705 not dumped, might be the same as midresb
-GAME( 1988, drgninjab2, baddudes, drgninjab,  drgninja,   dec0_state, init_drgninja,   ROT0, "bootleg", "Dragonninja (bootleg with 68705)", MACHINE_SUPPORTS_SAVE ) // is this the same board as above? (region warning hacked to World, but still shows Japanese text)
+GAME( 1988, drgninjab2, baddudes, drgninjab,  drgninja,   dec0_state, init_drgninja,   ROT0, "bootleg", "Dragonninja (bootleg with 68705)", MACHINE_SUPPORTS_SAVE ) // is this the same board as above? (region warning hacked to World, but still shows Japanese text), 68705 dumped but not hooked up
 
 // these are different to the above but quite similar to each other
 GAME( 1988, automat,    robocop,  automat,    robocop,    dec0_automat_state, empty_init,   ROT0,   "bootleg", "Automat (bootleg of Robocop)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE ) // sound rom / music from section z with mods for ADPCM?

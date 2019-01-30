@@ -210,7 +210,6 @@ GFX check (these don't explicitly fails):
 #define _32X_COMMS_PORT_SYNC 0
 #define MAX_HPOSITION 480
 /* need to make some pwm stuff part of device */
-#define PWM_FIFO_SIZE m_pwm_tm_reg // guess, Marsch calls this register as FIFO width
 
 
 
@@ -818,44 +817,56 @@ void sega_32x_device::calculate_pwm_timer()
 	{
 		m_pwm_timer_tick = 0;
 		m_lch_fifo_state = m_rch_fifo_state = 0x4000;
-		m_lch_index_r = m_rch_index_r = 0;
-		m_lch_index_w = m_rch_index_w = 0;
+		m_lch_size = m_rch_size = 0;
 		m_32x_pwm_timer->adjust(attotime::from_hz(clock() / (m_pwm_cycle - 1)));
 	}
 }
 
+void sega_32x_device::lch_pop()
+{
+	for (int i = 0; i < PWM_FIFO_SIZE - 1; i++)
+		m_cur_lch[i] = m_cur_lch[i + 1];
+	m_lch_size--;
+}
+
+void sega_32x_device::rch_pop()
+{
+	for (int i = 0; i < PWM_FIFO_SIZE - 1; i++)
+		m_cur_rch[i] = m_cur_rch[i + 1];
+	m_rch_size--;
+}
 
 TIMER_CALLBACK_MEMBER(sega_32x_device::handle_pwm_callback)
 {
-	if(m_lch_index_r < PWM_FIFO_SIZE)
+	if (m_lch_size > 0)
 	{
 		switch(m_pwm_ctrl & 3)
 		{
-			case 0: m_lch_index_r++; /*Speaker OFF*/ break;
-			case 1: m_ldac->write(m_cur_lch[m_lch_index_r++]); break;
-			case 2: m_rdac->write(m_cur_lch[m_lch_index_r++]); break;
+			case 0: /*Speaker OFF*/ break;
+			case 1: m_ldac->write(m_cur_lch[0]); break;
+			case 2: m_rdac->write(m_cur_lch[0]); break;
 			case 3: popmessage("Undefined PWM Lch value 3, contact MESSdev"); break;
 		}
 
-		m_lch_index_w = 0;
+		lch_pop();
 	}
 
-	m_lch_fifo_state = (m_lch_index_r == PWM_FIFO_SIZE) ? 0x4000 : 0x0000;
+	m_lch_fifo_state = (m_lch_size == 0) ? 0x4000 : 0x0000;
 
-	if(m_rch_index_r < PWM_FIFO_SIZE)
+	if (m_rch_size > 0)
 	{
 		switch((m_pwm_ctrl & 0xc) >> 2)
 		{
-			case 0: m_rch_index_r++; /*Speaker OFF*/ break;
-			case 1: m_rdac->write(m_cur_rch[m_rch_index_r++]); break;
-			case 2: m_ldac->write(m_cur_rch[m_rch_index_r++]); break;
+			case 0: /*Speaker OFF*/ break;
+			case 1: m_rdac->write(m_cur_rch[0]); break;
+			case 2: m_ldac->write(m_cur_rch[0]); break;
 			case 3: popmessage("Undefined PWM Rch value 3, contact MESSdev"); break;
 		}
 
-		m_rch_index_w = 0;
+		rch_pop();
 	}
 
-	m_rch_fifo_state = (m_rch_index_r == PWM_FIFO_SIZE) ? 0x4000 : 0x0000;
+	m_rch_fifo_state = (m_rch_size == 0) ? 0x4000 : 0x0000;
 
 	m_pwm_timer_tick++;
 
@@ -898,40 +909,30 @@ WRITE16_MEMBER( sega_32x_device::_32x_pwm_w )
 			calculate_pwm_timer();
 			break;
 		case 0x04/2:
-			if(m_lch_index_w < PWM_FIFO_SIZE)
-			{
-				m_cur_lch[m_lch_index_w++] = ((data & 0xfff) << 4) | (data & 0xf);
-				m_lch_index_r = 0;
-			}
+			if (m_lch_size == PWM_FIFO_SIZE)
+				lch_pop();
+			m_cur_lch[m_lch_size++] = data;
 
-			m_lch_fifo_state = (m_lch_index_w == PWM_FIFO_SIZE) ? 0x8000 : 0x0000;
+			m_lch_fifo_state = (m_lch_size == PWM_FIFO_SIZE) ? 0x8000 : 0x0000;
 			break;
 		case 0x06/2:
-			if(m_rch_index_w < PWM_FIFO_SIZE)
-			{
-				m_cur_rch[m_rch_index_w++] = ((data & 0xfff) << 4) | (data & 0xf);
-				m_rch_index_r = 0;
-			}
+			if (m_rch_size == PWM_FIFO_SIZE)
+				rch_pop();
+			m_cur_rch[m_rch_size++] = data;
 
-			m_rch_fifo_state = (m_rch_index_w == PWM_FIFO_SIZE) ? 0x8000 : 0x0000;
-
+			m_rch_fifo_state = (m_rch_size == PWM_FIFO_SIZE) ? 0x8000 : 0x0000;
 			break;
 		case 0x08/2:
-			if(m_lch_index_w < PWM_FIFO_SIZE)
-			{
-				m_cur_lch[m_lch_index_w++] = ((data & 0xfff) << 4) | (data & 0xf);
-				m_lch_index_r = 0;
-			}
+			if (m_lch_size == PWM_FIFO_SIZE)
+				lch_pop();
+			m_cur_lch[m_lch_size++] = data;
 
-			if(m_rch_index_w < PWM_FIFO_SIZE)
-			{
-				m_cur_rch[m_rch_index_w++] = ((data & 0xfff) << 4) | (data & 0xf);
-				m_rch_index_r = 0;
-			}
+			if (m_rch_size == PWM_FIFO_SIZE)
+				rch_pop();
+			m_cur_rch[m_rch_size++] = data;
 
-			m_lch_fifo_state = (m_lch_index_w == PWM_FIFO_SIZE) ? 0x8000 : 0x0000;
-			m_rch_fifo_state = (m_rch_index_w == PWM_FIFO_SIZE) ? 0x8000 : 0x0000;
-
+			m_lch_fifo_state = (m_lch_size == PWM_FIFO_SIZE) ? 0x8000 : 0x0000;
+			m_rch_fifo_state = (m_rch_size == PWM_FIFO_SIZE) ? 0x8000 : 0x0000;
 			break;
 		default:
 			printf("Write at undefined PWM register %02x %04x\n",offset,data);
@@ -1759,67 +1760,57 @@ const rom_entry *sega_32x_device::device_rom_region() const
 // some games appear to dislike 'perfect' levels of interleave, probably due to
 // non-emulated cache, ram waitstates and other issues?
 #define _32X_INTERLEAVE_LEVEL \
-	MCFG_QUANTUM_TIME(attotime::from_hz(1800000))
+	config.m_minimum_quantum = attotime::from_hz(1800000);
 
-MACHINE_CONFIG_START(sega_32x_ntsc_device::device_add_mconfig)
-
+void sega_32x_device::device_add_mconfig(machine_config &config)
+{
 #ifndef _32X_SWAP_MASTER_SLAVE_HACK
-	MCFG_DEVICE_ADD("32x_master_sh2", SH2, DERIVED_CLOCK(1, 1) )
-	MCFG_DEVICE_PROGRAM_MAP(sh2_main_map)
-	MCFG_SH2_IS_SLAVE(0)
-	MCFG_SH2_FIFO_DATA_AVAIL_CB(sega_32x_device, _32x_fifo_available_callback)
+	SH2(config, m_master_cpu, DERIVED_CLOCK(1, 1));
+	m_master_cpu->set_is_slave(0);
+	m_master_cpu->set_dma_fifo_data_available_callback(FUNC(sega_32x_device::_32x_fifo_available_callback));
 #endif
 
-	MCFG_DEVICE_ADD("32x_slave_sh2", SH2, DERIVED_CLOCK(1, 1) )
-	MCFG_DEVICE_PROGRAM_MAP(sh2_slave_map)
-	MCFG_SH2_IS_SLAVE(1)
-	MCFG_SH2_FIFO_DATA_AVAIL_CB(sega_32x_device, _32x_fifo_available_callback)
+	SH2(config, m_slave_cpu, DERIVED_CLOCK(1, 1));
+	m_slave_cpu->set_is_slave(1);
+	m_slave_cpu->set_dma_fifo_data_available_callback(FUNC(sega_32x_device::_32x_fifo_available_callback));
 
 #ifdef _32X_SWAP_MASTER_SLAVE_HACK
-	MCFG_DEVICE_ADD("32x_master_sh2", SH2, DERIVED_CLOCK(1, 1) )
-	MCFG_DEVICE_PROGRAM_MAP(sh2_main_map)
-	MCFG_SH2_IS_SLAVE(0)
-	MCFG_SH2_FIFO_DATA_AVAIL_CB(sega_32x_device, _32x_fifo_available_callback)
+	SH2(config, m_master_cpu, DERIVED_CLOCK(1, 1));
+	m_master_cpu->set_is_slave(0);
+	m_master_cpu->set_dma_fifo_data_available_callback(FUNC(sega_32x_device::_32x_fifo_available_callback));
 #endif
 
-	MCFG_DEVICE_ADD("ldac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, ":lspeaker", 0.4) // unknown DAC
-	MCFG_DEVICE_ADD("rdac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, ":rspeaker", 0.4) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE(0, "ldac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE(0, "ldac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE(0, "rdac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE(0, "rdac", -1.0, DAC_VREF_NEG_INPUT)
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref", 0));
+	vref.set_output(5.0);
+	vref.add_route(0, "ldac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "ldac", -1.0, DAC_VREF_NEG_INPUT);
+	vref.add_route(0, "rdac", 1.0, DAC_VREF_POS_INPUT);
+	vref.add_route(0, "rdac", -1.0, DAC_VREF_NEG_INPUT);
 
 	_32X_INTERLEAVE_LEVEL
-MACHINE_CONFIG_END
+}
 
-MACHINE_CONFIG_START(sega_32x_pal_device::device_add_mconfig)
+void sega_32x_ntsc_device::device_add_mconfig(machine_config &config)
+{
+	sega_32x_device::device_add_mconfig(config);
 
-#ifndef _32X_SWAP_MASTER_SLAVE_HACK
-	MCFG_DEVICE_ADD("32x_master_sh2", SH2, DERIVED_CLOCK(1, 1) )
-	MCFG_DEVICE_PROGRAM_MAP(sh2_main_map)
-	MCFG_SH2_IS_SLAVE(0)
-	MCFG_SH2_FIFO_DATA_AVAIL_CB(sega_32x_device, _32x_fifo_available_callback)
-#endif
+	m_master_cpu->set_addrmap(AS_PROGRAM, &sega_32x_ntsc_device::sh2_main_map);
+	m_slave_cpu->set_addrmap(AS_PROGRAM, &sega_32x_ntsc_device::sh2_slave_map);
 
-	MCFG_DEVICE_ADD("32x_slave_sh2", SH2, DERIVED_CLOCK(1, 1) )
-	MCFG_DEVICE_PROGRAM_MAP(sh2_slave_map)
-	MCFG_SH2_IS_SLAVE(1)
-	MCFG_SH2_FIFO_DATA_AVAIL_CB(sega_32x_device, _32x_fifo_available_callback)
+	DAC_12BIT_R2R(config, m_ldac, 0).add_route(ALL_OUTPUTS, ":lspeaker", 0.4); // unknown DAC
+	DAC_12BIT_R2R(config, m_rdac, 0).add_route(ALL_OUTPUTS, ":rspeaker", 0.4); // unknown DAC
+}
 
-#ifdef _32X_SWAP_MASTER_SLAVE_HACK
-	MCFG_DEVICE_ADD("32x_master_sh2", SH2, DERIVED_CLOCK(1, 1) )
-	MCFG_DEVICE_PROGRAM_MAP(sh2_main_map)
-	MCFG_SH2_IS_SLAVE(0)
-	MCFG_SH2_FIFO_DATA_AVAIL_CB(sega_32x_device, _32x_fifo_available_callback)
-#endif
+void sega_32x_pal_device::device_add_mconfig(machine_config &config)
+{
+	sega_32x_device::device_add_mconfig(config);
 
-	MCFG_DEVICE_ADD("ldac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, ":lspeaker", 0.4) // unknown DAC
-	MCFG_DEVICE_ADD("rdac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, ":rspeaker", 0.4) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE(0, "ldac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE(0, "ldac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE(0, "rdac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE(0, "rdac", -1.0, DAC_VREF_NEG_INPUT)
+	m_master_cpu->set_addrmap(AS_PROGRAM, &sega_32x_pal_device::sh2_main_map);
+	m_slave_cpu->set_addrmap(AS_PROGRAM, &sega_32x_pal_device::sh2_slave_map);
 
-	_32X_INTERLEAVE_LEVEL
-MACHINE_CONFIG_END
+	DAC_16BIT_R2R(config, m_ldac, 0).add_route(ALL_OUTPUTS, ":lspeaker", 0.4); // unknown DAC
+	DAC_16BIT_R2R(config, m_rdac, 0).add_route(ALL_OUTPUTS, ":rspeaker", 0.4); // unknown DAC
+}
 
 
 void sega_32x_device::device_start()
@@ -1883,8 +1874,8 @@ void sega_32x_device::device_reset()
 	m_pwm_ctrl = 0;
 	calculate_pwm_timer();
 
-	m_lch_index_w = 0;
-	m_rch_index_w = 0;
+	m_lch_size = 0;
+	m_rch_size = 0;
 
 	m_total_scanlines = 262;
 

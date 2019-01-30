@@ -734,29 +734,27 @@ MACHINE_CONFIG_START(thepit_state::thepit)
 	m_mainlatch->q_out_cb<6>().set(FUNC(thepit_state::flip_screen_x_w));
 	m_mainlatch->q_out_cb<7>().set(FUNC(thepit_state::flip_screen_y_w));
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_thepit)
-	MCFG_PALETTE_ADD("palette", 32+8)
-	MCFG_PALETTE_INIT_OWNER(thepit_state, thepit)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_thepit);
+	PALETTE(config, m_palette, FUNC(thepit_state::thepit_palette), 32+8);
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(thepit_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, "soundlatch");
 
-	MCFG_DEVICE_ADD("ay1", AY8910, PIXEL_CLOCK/4)
-	MCFG_AY8910_PORT_A_READ_CB(READ8("soundlatch", generic_latch_8_device, read))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	ay8910_device &ay1(AY8910(config, "ay1", PIXEL_CLOCK/4));
+	ay1.port_a_read_callback().set("soundlatch", FUNC(generic_latch_8_device::read));
+	ay1.add_route(ALL_OUTPUTS, "mono", 0.25);
 
-	MCFG_DEVICE_ADD("ay2", AY8910, PIXEL_CLOCK/4)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	AY8910(config, "ay2", PIXEL_CLOCK/4).add_route(ALL_OUTPUTS, "mono", 0.25);
 MACHINE_CONFIG_END
 
 void thepit_state::fitter(machine_config &config)
@@ -776,7 +774,7 @@ MACHINE_CONFIG_START(thepit_state::desertdn)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(thepit_state, screen_update_desertdan)
 
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_intrepid)
+	m_gfxdecode->set_info(gfx_intrepid);
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(thepit_state::intrepid)
@@ -789,20 +787,18 @@ MACHINE_CONFIG_START(thepit_state::intrepid)
 	m_mainlatch->q_out_cb<5>().set(FUNC(thepit_state::intrepid_graphics_bank_w));
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_intrepid)
+	m_gfxdecode->set_info(gfx_intrepid);
 MACHINE_CONFIG_END
 
 
-MACHINE_CONFIG_START(thepit_state::suprmous)
+void thepit_state::suprmous(machine_config &config)
+{
 	intrepid(config);
 
-	/* basic machine hardware */
-
 	/* video hardware */
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_INIT_OWNER(thepit_state,suprmous)
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_suprmous)
-MACHINE_CONFIG_END
+	m_palette->set_init(FUNC(thepit_state::suprmous_palette));
+	m_gfxdecode->set_info(gfx_suprmous);
+}
 
 
 

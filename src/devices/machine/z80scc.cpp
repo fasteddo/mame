@@ -390,10 +390,11 @@ DEFINE_DEVICE_TYPE(SCC8523L,       scc8523l_device, "scc8523l",       "Zilog Z85
 //-------------------------------------------------
 //  device_add_mconfig - add device configuration
 //-------------------------------------------------
-MACHINE_CONFIG_START(z80scc_device::device_add_mconfig)
-	MCFG_DEVICE_ADD(CHANA_TAG, Z80SCC_CHANNEL, 0)
-	MCFG_DEVICE_ADD(CHANB_TAG, Z80SCC_CHANNEL, 0)
-MACHINE_CONFIG_END
+void z80scc_device::device_add_mconfig(machine_config &config)
+{
+	Z80SCC_CHANNEL(config, CHANA_TAG, 0);
+	Z80SCC_CHANNEL(config, CHANB_TAG, 0);
+}
 
 
 //**************************************************************************
@@ -435,6 +436,7 @@ z80scc_device::z80scc_device(const machine_config &mconfig, device_type type, co
 	m_out_rxdrq_cb{ { *this }, { *this } },
 	m_out_txdrq_cb{ { *this }, { *this } },
 	m_out_int_cb(*this),
+	m_out_int_state(CLEAR_LINE),
 	m_variant(variant),
 	m_wr0_ptrbits(0),
 	m_cputag(nullptr)
@@ -516,6 +518,7 @@ void z80scc_device::device_start()
 	LOG("%s", FUNCNAME);
 
 	// state saving
+	save_item(NAME(m_out_int_state));
 	save_item(NAME(m_int_state));
 	save_item(NAME(m_int_source));
 	save_item(NAME(m_wr9));
@@ -680,8 +683,12 @@ void z80scc_device::z80daisy_irq_reti()
 void z80scc_device::check_interrupts()
 {
 	int state = (z80daisy_irq_state() & Z80_DAISY_INT) ? ASSERT_LINE : CLEAR_LINE;
-	LOGINT("%s %s \n",tag(), FUNCNAME);
-	m_out_int_cb(state);
+	if (m_out_int_state != state)
+	{
+		m_out_int_state = state;
+		LOGINT("%s\n", FUNCNAME);
+		m_out_int_cb(state);
+	}
 }
 
 
@@ -2589,10 +2596,10 @@ void z80scc_channel::m_tx_fifo_rp_step()
 		}
 }
 
-READ8_MEMBER (z80scc_device::da_r)  { return m_chanA->data_read(); }
-WRITE8_MEMBER (z80scc_device::da_w) { m_chanA->data_write(data); }
-READ8_MEMBER (z80scc_device::db_r)  { return m_chanB->data_read(); }
-WRITE8_MEMBER (z80scc_device::db_w) { m_chanB->data_write(data); }
+uint8_t z80scc_device::da_r(offs_t offset)            { return m_chanA->data_read(); }
+void z80scc_device::da_w(offs_t offset, uint8_t data) { m_chanA->data_write(data); }
+uint8_t z80scc_device::db_r(offs_t offset)            { return m_chanB->data_read(); }
+void z80scc_device::db_w(offs_t offset, uint8_t data) { m_chanB->data_write(data); }
 
 //-------------------------------------------------
 //  data_write - write data register

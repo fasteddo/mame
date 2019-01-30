@@ -651,7 +651,7 @@ MACHINE_CONFIG_START(fastfred_state::fastfred)
 	m_outlatch->q_out_cb<6>().set(FUNC(fastfred_state::flip_screen_x_w));
 	m_outlatch->q_out_cb<7>().set(FUNC(fastfred_state::flip_screen_y_w));
 
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -660,26 +660,22 @@ MACHINE_CONFIG_START(fastfred_state::fastfred)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fastfred_state, screen_update_fastfred)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, fastfred_state, vblank_irq))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_fastfred)
+	GFXDECODE(config, "gfxdecode", m_palette, gfx_fastfred);
 
-	MCFG_PALETTE_ADD("palette", 32*8)
-	MCFG_PALETTE_INDIRECT_ENTRIES(256)
-	MCFG_PALETTE_INIT_OWNER(fastfred_state,fastfred)
+	PALETTE(config, m_palette, FUNC(fastfred_state::fastfred_palette), 32 * 8, 256);
 	MCFG_VIDEO_START_OVERRIDE(fastfred_state,fastfred)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, "soundlatch");
 
-	MCFG_DEVICE_ADD("ay8910.1", AY8910, XTAL(12'432'000)/8) /* 1.554 MHz; xtal from pcb pics, divider not verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	AY8910(config, "ay8910.1", XTAL(12'432'000)/8).add_route(ALL_OUTPUTS, "mono", 0.25); /* 1.554 MHz; xtal from pcb pics, divider not verified */
 
-	MCFG_DEVICE_ADD("ay8910.2", AY8910, XTAL(12'432'000)/8) /* 1.554 MHz; xtal from pcb pics, divider not verified */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	AY8910(config, "ay8910.2", XTAL(12'432'000)/8).add_route(ALL_OUTPUTS, "mono", 0.25); /* 1.554 MHz; xtal from pcb pics, divider not verified */
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(fastfred_state::jumpcoas)
@@ -692,7 +688,7 @@ MACHINE_CONFIG_START(fastfred_state::jumpcoas)
 	MCFG_DEVICE_REMOVE("audiocpu")
 
 	/* video hardware */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_jumpcoas)
+	subdevice<gfxdecode_device>("gfxdecode")->set_info(gfx_jumpcoas);
 
 	/* sound hardware */
 	MCFG_DEVICE_REMOVE("soundlatch")
@@ -713,13 +709,11 @@ MACHINE_CONFIG_START(fastfred_state::imago)
 	MCFG_MACHINE_START_OVERRIDE(fastfred_state,imago)
 
 	/* video hardware */
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_ENTRIES(256+64+2) /* 256 for characters, 64 for the stars and 2 for the web */
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_imago)
+	m_palette->set_entries(256+64+2); // 256 for characters, 64 for the stars and 2 for the web
+	subdevice<gfxdecode_device>("gfxdecode")->set_info(gfx_imago);
 
 	MCFG_VIDEO_START_OVERRIDE(fastfred_state,imago)
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(fastfred_state, screen_update_imago)
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(fastfred_state::screen_update_imago));
 MACHINE_CONFIG_END
 
 #undef CLOCK

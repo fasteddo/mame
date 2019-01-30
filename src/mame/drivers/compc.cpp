@@ -1,6 +1,34 @@
 // license:BSD-3-Clause
 // copyright-holders:Carl
 // Commodore PC 10 / PC 20 / PC 30
+/***************************************************************************
+Commodore PC10 / PC20 / PC30
+Links: http://www.zimmers.net/cbmpics/cpcs.html , https://de.wikipedia.org/wiki/Commodore_PC-10_bis_PC-60 , http://mingos-commodorepage.tumblr.com/post/123656301482/commodore-pc-20-beim-pc-20-handelt-es-sich-um
+http://www.richardlagendijk.nl/cip/computer/item/pc20ii/de
+Form Factor: Desktop
+CPU: 8088 @ 4.77 MHz
+RAM: 256K / 512K / 640K
+BUS: 5x ISA
+Video: MDA
+Mass storage: PC10: 1 or 2x 5.25" 360K , PC20: 1x 360K + 10MB HD, PC30: 1x 360K + 20MB HD
+On board ports: Floppy, serial, parallel, speaker
+Options: 8087 FPU
+
+
+Commodore PC-10 III
+=============
+Links: http://dostalgie.de/downloads/pc10III-20III/PC10III_OM_COMMODORE_EN_DE.pdf ; ftp://ftp.zimmers.net/pub/cbm-pc/documents/PC-8088-Information.txt
+Info: PC10-III and PC20-III are the same machines - PC10 has two floppies, PC20 one floppy and one harddisk
+Form Factor: Desktop
+CPU: 8088 @ 4.77 MHz / 7.16 MHz / 9.54 MHz
+RAM: 640K
+Bus: 3x ISA
+Video: On board: MDA/CGA/Hercules/Plantronics
+Mass storage: 1x Floppy 5.25" 360K and (PC10) another 360K or (PC20) 3.5" harddisk
+On board ports: Floppy, XT-IDE Harddisk, Mouse, serial, parallel, RTC, Speaker
+Options: 8087 FPU
+***************************************************************************/
+
 #include "emu.h"
 
 #include "cpu/i86/i86.h"
@@ -200,13 +228,13 @@ MACHINE_CONFIG_START(compc_state::compc)
 
 	MCFG_PCNOPPI_MOTHERBOARD_ADD("mb", "maincpu")
 	MCFG_DEVICE_REMOVE("mb:pit8253")
-	MCFG_DEVICE_ADD("mb:pit8253", FE2010_PIT, 0)
-	MCFG_PIT8253_CLK0(XTAL(14'318'181)/12.0) /* heartbeat IRQ */
-	MCFG_PIT8253_OUT0_HANDLER(WRITELINE("mb:pic8259", pic8259_device, ir0_w))
-	MCFG_PIT8253_CLK1(XTAL(14'318'181)/12.0) /* dram refresh */
-	MCFG_PIT8253_OUT1_HANDLER(WRITELINE("mb", ibm5160_mb_device, pc_pit8253_out1_changed))
-	MCFG_PIT8253_CLK2(XTAL(14'318'181)/12.0) /* pio port c pin 4, and speaker polling enough */
-	MCFG_PIT8253_OUT2_HANDLER(WRITELINE("mb", ibm5160_mb_device, pc_pit8253_out2_changed))
+	fe2010_pit_device &pit(FE2010_PIT(config, "mb:pit8253", 0));
+	pit.set_clk<0>(XTAL(14'318'181)/12.0); /* heartbeat IRQ */
+	pit.out_handler<0>().set("mb:pic8259", FUNC(pic8259_device::ir0_w));
+	pit.set_clk<1>(XTAL(14'318'181)/12.0); /* dram refresh */
+	pit.out_handler<1>().set(m_mb, FUNC(ibm5160_mb_device::pc_pit8253_out1_changed));
+	pit.set_clk<2>(XTAL(14'318'181)/12.0); /* pio port c pin 4, and speaker polling enough */
+	pit.out_handler<2>().set(m_mb, FUNC(ibm5160_mb_device::pc_pit8253_out2_changed));
 
 	// FIXME: determine ISA bus clock
 	MCFG_DEVICE_ADD("isa1", ISA8_SLOT, 0, "mb:isa", pc_isa8_cards, "mda", false)

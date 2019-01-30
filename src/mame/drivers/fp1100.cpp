@@ -670,10 +670,11 @@ MACHINE_CONFIG_START(fp1100_state::fp1100)
 			.add_route(ALL_OUTPUTS, "mono", 0.50); // inside the keyboard
 
 	/* CRTC */
-	MCFG_MC6845_ADD("crtc", H46505, "screen", MAIN_CLOCK/8)   /* hand tuned to get ~60 fps */
-	MCFG_MC6845_SHOW_BORDER_AREA(false)
-	MCFG_MC6845_CHAR_WIDTH(8)
-	MCFG_MC6845_UPDATE_ROW_CB(fp1100_state, crtc_update_row)
+	H46505(config, m_crtc, MAIN_CLOCK/8);   /* hand tuned to get ~60 fps */
+	m_crtc->set_screen("screen");
+	m_crtc->set_show_border_area(false);
+	m_crtc->set_char_width(8);
+	m_crtc->set_update_row_callback(FUNC(fp1100_state::crtc_update_row), this);
 
 	/* Printer */
 	MCFG_DEVICE_ADD(m_centronics, CENTRONICS, centronics_devices, "printer")
@@ -681,9 +682,9 @@ MACHINE_CONFIG_START(fp1100_state::fp1100)
 	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	/* Cassette */
-	MCFG_CASSETTE_ADD("cassette")
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_c", fp1100_state, timer_c, attotime::from_hz(4800)) // cass write
+	CASSETTE(config, m_cass);
+	m_cass->set_default_state(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED);
+	TIMER(config, "timer_c").configure_periodic(FUNC(fp1100_state::timer_c), attotime::from_hz(4800)); // cass write
 MACHINE_CONFIG_END
 
 /* ROM definition */

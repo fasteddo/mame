@@ -3,6 +3,7 @@
 
 #include "emu.h"
 #include "upd765.h"
+#include "imagedev/floppy.h"
 #include "debugger.h"
 
 #define LOG_WARN    (1U << 1)   // Show warnings
@@ -45,7 +46,7 @@ DEFINE_DEVICE_TYPE(UPD72065,       upd72065_device,       "upd72065",       "NEC
 DEFINE_DEVICE_TYPE(I82072,         i82072_device,         "i82072",         "Intel 82072 FDC")
 DEFINE_DEVICE_TYPE(SMC37C78,       smc37c78_device,       "smc37c78",       "SMC FDC73C78 FDC")
 DEFINE_DEVICE_TYPE(N82077AA,       n82077aa_device,       "n82077aa",       "Intel N82077AA FDC")
-DEFINE_DEVICE_TYPE(PC_FDC_SUPERIO, pc_fdc_superio_device, "pc_fdc_superio", "PC FDC SUPERIO")
+DEFINE_DEVICE_TYPE(PC_FDC_SUPERIO, pc_fdc_superio_device, "pc_fdc_superio", "Winbond PC FDC Super I/O")
 DEFINE_DEVICE_TYPE(DP8473,         dp8473_device,         "dp8473",         "National Semiconductor DP8473 FDC")
 DEFINE_DEVICE_TYPE(PC8477A,        pc8477a_device,        "pc8477a",        "National Semiconductor PC8477A FDC")
 DEFINE_DEVICE_TYPE(WD37C65C,       wd37c65c_device,       "wd37c65c",       "Western Digital WD37C65C FDC")
@@ -165,7 +166,9 @@ upd765_family_device::upd765_family_device(const machine_config &mconfig, device
 	pc_fdc_interface(mconfig, type, tag, owner, clock),
 	intrq_cb(*this),
 	drq_cb(*this),
-	hdl_cb(*this)
+	hdl_cb(*this),
+	idx_cb(*this),
+	us_cb(*this)
 {
 	ready_polled = true;
 	ready_connected = true;
@@ -190,14 +193,19 @@ void upd765_family_device::set_mode(int _mode)
 	mode = _mode;
 }
 
+void upd765_family_device::device_resolve_objects()
+{
+	intrq_cb.resolve_safe();
+	drq_cb.resolve_safe();
+	hdl_cb.resolve_safe();
+	idx_cb.resolve_safe();
+	us_cb.resolve_safe();
+}
+
 void upd765_family_device::device_start()
 {
 	save_item(NAME(motorcfg));
 	save_item(NAME(selected_drive));
-
-	intrq_cb.resolve_safe();
-	drq_cb.resolve_safe();
-	hdl_cb.resolve_safe();
 
 	for(int i=0; i != 4; i++) {
 		char name[2];
@@ -326,6 +334,7 @@ void upd765_family_device::set_ds(int fid)
 	for(floppy_info &fi : flopi)
 		if(fi.dev)
 			fi.dev->ds_w(fid);
+	us_cb(fid);
 
 	// record selected drive
 	selected_drive = fid;
@@ -340,6 +349,8 @@ void upd765_family_device::set_floppy(floppy_image_device *flop)
 	}
 	if(flop)
 		flop->setup_index_pulse_cb(floppy_image_device::index_pulse_cb(&upd765_family_device::index_callback, this));
+	else
+		idx_cb(0);
 }
 
 READ8_MEMBER(upd765_family_device::sra_r)
@@ -2442,6 +2453,7 @@ void upd765_family_device::index_callback(floppy_image_device *floppy, int state
 		if(fi.live)
 			live_sync();
 		fi.index = state;
+		idx_cb(state);
 
 		if(!state) {
 			general_continue(fi);

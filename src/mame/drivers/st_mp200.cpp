@@ -603,7 +603,7 @@ MACHINE_CONFIG_START(st_mp200_state::st_mp200)
 	m_pia_u10->cb2_handler().set(FUNC(st_mp200_state::u10_cb2_w));
 	m_pia_u10->irqa_handler().set_inputline("maincpu", M6800_IRQ_LINE);
 	m_pia_u10->irqb_handler().set_inputline("maincpu", M6800_IRQ_LINE);
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_x", st_mp200_state, timer_x, attotime::from_hz(120)) // mains freq*2
+	TIMER(config, "timer_x").configure_periodic(FUNC(st_mp200_state::timer_x), attotime::from_hz(120)); // mains freq*2
 
 	PIA6821(config, m_pia_u11, 0);
 	m_pia_u11->readpa_handler().set(FUNC(st_mp200_state::u11_a_r));
@@ -613,7 +613,7 @@ MACHINE_CONFIG_START(st_mp200_state::st_mp200)
 	m_pia_u11->cb2_handler().set(FUNC(st_mp200_state::u11_cb2_w));
 	m_pia_u11->irqa_handler().set_inputline("maincpu", M6800_IRQ_LINE);
 	m_pia_u11->irqb_handler().set_inputline("maincpu", M6800_IRQ_LINE);
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_d", st_mp200_state, u11_timer, attotime::from_hz(634)) // 555 timer*2
+	TIMER(config, "timer_d").configure_periodic(FUNC(st_mp200_state::u11_timer), attotime::from_hz(634)); // 555 timer*2
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(st_mp200_state::st_mp201)
@@ -978,4 +978,4 @@ GAME(1982,  orbitor1,   0,          st_mp201,   mp200, st_mp200_state, init_st_m
 // other manufacturer
 GAME(1985,  gamatron,   flight2k,   st_mp200,   mp200, st_mp200_state, init_st_mp200, ROT0, "Pinstar",   "Gamatron",               MACHINE_IS_SKELETON_MECHANICAL)
 GAME(1978,  blkshpsq,   0,          st_mp200,   mp200, st_mp200_state, init_st_mp202, ROT0, "Astro",     "Black Sheep Squadron",   MACHINE_IS_SKELETON_MECHANICAL)
-GAME(198?,  st_game,    0,          st_mp200,   mp200, st_mp200_state, init_st_mp200, ROT0, "<unknown>", "unknown pinball game",   MACHINE_IS_SKELETON_MECHANICAL)
+GAME(198?,  st_game,    0,          st_mp200,   mp200, st_mp200_state, init_st_mp200, ROT0, "<unknown>", "unknown MP-200 pinball game", MACHINE_IS_SKELETON_MECHANICAL)

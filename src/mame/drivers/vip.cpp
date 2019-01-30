@@ -483,7 +483,7 @@ READ_LINE_MEMBER(vip_state::ef4_r)
 WRITE_LINE_MEMBER(vip_state::q_w)
 {
 	// sound output
-	m_beeper->write(machine().dummy_space(), NODE_01, state);
+	m_beeper->write(NODE_01, state);
 
 	// Q led
 	m_leds[LED_Q] = state ? 1 : 0;
@@ -611,7 +611,7 @@ void vip_state::machine_start()
 	m_leds[LED_POWER] = 1;
 
 	// reset sound
-	m_beeper->write(machine().dummy_space(), NODE_01, 0);
+	m_beeper->write(NODE_01, 0);
 
 	// state saving
 	save_item(NAME(m_8000));
@@ -739,9 +739,9 @@ MACHINE_CONFIG_START(vip_state::vip)
 
 	// devices
 	MCFG_QUICKLOAD_ADD("quickload", vip_state, vip, "bin,c8,c8x", 0)
-	MCFG_CASSETTE_ADD("cassette")
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
-	MCFG_CASSETTE_INTERFACE("vip_cass")
+	CASSETTE(config, m_cassette);
+	m_cassette->set_default_state(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED);
+	m_cassette->set_interface("vip_cass");
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("cass_list", "vip")

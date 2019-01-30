@@ -1055,6 +1055,12 @@ The following views will be automatically generated:
   play games that don't automatically rotate the display for the second player.
   The screen will be displayed at its physical aspect ratio, with rotation
   applied.
+* If the system has exactly two emulated screens, MAME will generate a view
+  showing the second screen above the first screen with a small gap between
+  them.  The second screen will be rotated by 180 degrees.  This view can be
+  used to play a dual-screen two-player game on a "cocktail table" cabinet with
+  a single screen.  The screens will be displayed at their physical aspect
+  ratios, with rotation applied.
 * If the system has exactly two emulated screens and no view in the internal or
   external layouts shows all screens, or if the system has more than two
   emulated screens, MAME will generate views with the screens arranged
@@ -1084,9 +1090,9 @@ when parameters are used, or recursively nested groups.  The ``complay.py``
 script is compatible with both Python 2.7 and Python 3 interpreters.
 
 The ``complay.py`` script takes three parameters -- an input file name, an
-output file name, and a base name for variables in the output::
+output file name, and a base name for variables in the output:
 
-    python scripts/build/complay.py input [output [varname]]
+    **python scripts/build/complay.py** *<input>* [*<output>* [*<varname>*]]
 
 The input file name is required.  If no output file name is supplied,
 ``complay.py`` will parse and check the input, reporting any errors found,
@@ -1098,6 +1104,6 @@ in case of an I/O error.  If an output file name is specified, the file will be
 created/overwritten on success or removed on failure.
 
 To check a layout file for common errors, run the script with the path to the
-file no check and no output file name or base variable name.  For example::
+file no check and no output file name or base variable name.  For example:
 
-    python scripts/build/complay.py artwork/dino/default.lay
+    **python scripts/build/complay.py artwork/dino/default.lay**

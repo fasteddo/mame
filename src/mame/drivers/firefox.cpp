@@ -653,7 +653,7 @@ MACHINE_CONFIG_START(firefox_state::firefox)
 	MCFG_DEVICE_ADD("maincpu", MC6809E, MASTER_XTAL/8) // 68B09E
 	MCFG_DEVICE_PROGRAM_MAP(main_map)
 	/* interrupts count starting at end of VBLANK, which is 44, so add 44 */
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("32v", firefox_state, video_timer_callback, "screen", 96+44, 128)
+	TIMER(config, "32v").configure_scanline(FUNC(firefox_state::video_timer_callback), "screen", 96+44, 128);
 
 	MCFG_DEVICE_ADD("audiocpu", M6502, MASTER_XTAL/8)
 	MCFG_DEVICE_PROGRAM_MAP(audio_map)
@@ -684,8 +684,7 @@ MACHINE_CONFIG_START(firefox_state::firefox)
 	latch1.q_out_cb<6>().set_output("led2").invert();
 	latch1.q_out_cb<7>().set_output("led3").invert();
 
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_TIME_INIT(attotime::from_hz(MASTER_XTAL/8/16/16/16/16))
+	WATCHDOG_TIMER(config, "watchdog").set_time(attotime::from_hz(MASTER_XTAL/8/16/16/16/16));
 
 	/* video hardware */
 	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_firefox)
@@ -712,10 +711,10 @@ MACHINE_CONFIG_START(firefox_state::firefox)
 	SPEAKER(config, "lspeaker").front_left();
 	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("audiocpu", INPUT_LINE_NMI))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, INPUT_LINE_NMI);
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
+	GENERIC_LATCH_8(config, m_soundlatch2);
 
 	MCFG_DEVICE_ADD("pokey1", POKEY, MASTER_XTAL/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.30)

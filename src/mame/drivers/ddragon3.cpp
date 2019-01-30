@@ -20,7 +20,7 @@ Double Dragon 3 PCB Layout
 --------------------------
 
 TA-0030-P1-03 (early version with EPROMs)
-TA-0030-P1-04 (later version with MASKROMs)
+TA-0030-P1-04 (later version with mask ROMs)
 |----------------------------------------------|
 |VOL M51516 YM3012 YM2151     3.579545MHz IC15 |
 |     MB3615 1.056MHz   Z80               IC14|-|
@@ -825,7 +825,7 @@ MACHINE_CONFIG_START(ddragon3_state::ddragon3)
 	/* basic machine hardware */
 	MCFG_DEVICE_ADD("maincpu", M68000, 20_MHz_XTAL / 2)
 	MCFG_DEVICE_PROGRAM_MAP(ddragon3_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddragon3_state, ddragon3_scanline, "screen", 0, 1)
+	TIMER(config, "scantimer").configure_scanline(FUNC(ddragon3_state::ddragon3_scanline), "screen", 0, 1);
 
 	MCFG_DEVICE_ADD("audiocpu", Z80, XTAL(3'579'545))
 	MCFG_DEVICE_PROGRAM_MAP(sound_map)
@@ -835,25 +835,24 @@ MACHINE_CONFIG_START(ddragon3_state::ddragon3)
 	MCFG_SCREEN_RAW_PARAMS(28_MHz_XTAL / 4, 448, 0, 320, 272, 8, 248)   /* HTOTAL and VTOTAL are guessed */
 	MCFG_SCREEN_UPDATE_DRIVER(ddragon3_state, screen_update_ddragon3)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE("spriteram", buffered_spriteram16_device, vblank_copy_rising))
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ddragon3)
-	MCFG_PALETTE_ADD("palette", 768)
-	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ddragon3);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_555, 768);
 
-	MCFG_DEVICE_ADD("spriteram", BUFFERED_SPRITERAM16)
+	BUFFERED_SPRITERAM16(config, m_spriteram);
 
 	/* sound hardware */
 	SPEAKER(config, "lspeaker").front_left();
 	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("audiocpu", INPUT_LINE_NMI))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, INPUT_LINE_NMI);
 
-	MCFG_DEVICE_ADD("ym2151", YM2151, XTAL(3'579'545))
-	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
-	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
+	ym2151_device &ym2151(YM2151(config, "ym2151", XTAL(3'579'545)));
+	ym2151.irq_handler().set_inputline(m_audiocpu, 0);
+	ym2151.add_route(0, "lspeaker", 0.50);
+	ym2151.add_route(1, "rspeaker", 0.50);
 
 	MCFG_DEVICE_ADD("oki", OKIM6295, 1.056_MHz_XTAL, okim6295_device::PIN7_HIGH)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.50)
@@ -879,8 +878,7 @@ MACHINE_CONFIG_START(ddragon3_state::ctribe)
 	MCFG_DEVICE_MODIFY("audiocpu")
 	MCFG_DEVICE_PROGRAM_MAP(ctribe_sound_map)
 
-	MCFG_PALETTE_MODIFY("palette")
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	m_palette->set_format(palette_device::xBGR_444, 768);
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(ddragon3_state, screen_update_ctribe)
@@ -903,34 +901,33 @@ MACHINE_CONFIG_START(wwfwfest_state::wwfwfest)
 	/* basic machine hardware */
 	MCFG_DEVICE_ADD("maincpu", M68000, 24_MHz_XTAL / 2)  /* 24 crystal, 12 rated chip */
 	MCFG_DEVICE_PROGRAM_MAP(main_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddragon3_state, ddragon3_scanline, "screen", 0, 1)
+	TIMER(config, "scantimer").configure_scanline(FUNC(ddragon3_state::ddragon3_scanline), "screen", 0, 1);
 
 	MCFG_DEVICE_ADD("audiocpu", Z80, XTAL(3'579'545))
 	MCFG_DEVICE_PROGRAM_MAP(sound_map)
 
 	/* video hardware */
-	MCFG_DEVICE_ADD("spriteram", BUFFERED_SPRITERAM16)
+	BUFFERED_SPRITERAM16(config, m_spriteram);
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(28_MHz_XTAL / 4, 448, 0, 320, 272, 8, 248)   /* HTOTAL and VTOTAL are guessed */
 	MCFG_SCREEN_UPDATE_DRIVER(wwfwfest_state, screen_update_wwfwfest)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE("spriteram", buffered_spriteram16_device, vblank_copy_rising))
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_wwfwfest)
-	MCFG_PALETTE_ADD("palette", 8192)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_wwfwfest);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 8192);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("audiocpu", INPUT_LINE_NMI))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_audiocpu, INPUT_LINE_NMI);
 
-	MCFG_DEVICE_ADD("ym2151", YM2151, XTAL(3'579'545))
-	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
-	MCFG_SOUND_ROUTE(0, "mono", 0.45)
-	MCFG_SOUND_ROUTE(1, "mono", 0.45)
+	ym2151_device &ym2151(YM2151(config, "ym2151", XTAL(3'579'545)));
+	ym2151.irq_handler().set_inputline(m_audiocpu, 0);
+	ym2151.add_route(0, "mono", 0.45);
+	ym2151.add_route(1, "mono", 0.45);
 
 	MCFG_DEVICE_ADD("oki", OKIM6295, 1.056_MHz_XTAL, okim6295_device::PIN7_HIGH) /* Verified - Pin 7 tied to +5VDC */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
@@ -1510,10 +1507,10 @@ ROM_END
  *
  *************************************/
 
-GAME( 1990, ddragon3,  0,        ddragon3,  ddragon3,  ddragon3_state, empty_init, ROT0, "Technos Japan", "Double Dragon 3 - The Rosetta Stone (US)",        MACHINE_SUPPORTS_SAVE )
-GAME( 1990, ddragon3j, ddragon3, ddragon3,  ddragon3,  ddragon3_state, empty_init, ROT0, "Technos Japan", "Double Dragon 3 - The Rosetta Stone (Japan)",     MACHINE_SUPPORTS_SAVE )
-GAME( 1990, ddragon3p, ddragon3, ddragon3,  ddragon3,  ddragon3_state, empty_init, ROT0, "Technos Japan", "Double Dragon 3 - The Rosetta Stone (prototype)", MACHINE_SUPPORTS_SAVE )
-GAME( 1990, ddragon3b, ddragon3, ddragon3b, ddragon3b, ddragon3_state, empty_init, ROT0, "bootleg",       "Double Dragon 3 - The Rosetta Stone (bootleg)",   MACHINE_SUPPORTS_SAVE )
+GAME( 1990, ddragon3,  0,        ddragon3,  ddragon3,  ddragon3_state, empty_init, ROT0, "East Technology / Technos Japan", "Double Dragon 3 - The Rosetta Stone (US)",        MACHINE_SUPPORTS_SAVE )
+GAME( 1990, ddragon3j, ddragon3, ddragon3,  ddragon3,  ddragon3_state, empty_init, ROT0, "East Technology / Technos Japan", "Double Dragon 3 - The Rosetta Stone (Japan)",     MACHINE_SUPPORTS_SAVE )
+GAME( 1990, ddragon3p, ddragon3, ddragon3,  ddragon3,  ddragon3_state, empty_init, ROT0, "East Technology / Technos Japan", "Double Dragon 3 - The Rosetta Stone (prototype)", MACHINE_SUPPORTS_SAVE )
+GAME( 1990, ddragon3b, ddragon3, ddragon3b, ddragon3b, ddragon3_state, empty_init, ROT0, "bootleg",                         "Double Dragon 3 - The Rosetta Stone (bootleg)",   MACHINE_SUPPORTS_SAVE )
 
 GAME( 1990, ctribe,    0,        ctribe,    ctribe,    ddragon3_state, empty_init, ROT0, "Technos Japan", "The Combatribes (US, rev 2, set 1)", MACHINE_SUPPORTS_SAVE )
 GAME( 1990, ctribeua,  ctribe,   ctribe,    ctribe,    ddragon3_state, empty_init, ROT0, "Technos Japan", "The Combatribes (US, rev 2, set 2)", MACHINE_SUPPORTS_SAVE )

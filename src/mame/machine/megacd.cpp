@@ -301,13 +301,14 @@ MACHINE_CONFIG_START(sega_segacd_device::device_add_mconfig)
 	MCFG_DEVICE_ADD("cdc", LC89510, 0) // cd controller
 
 	// temporary until things are cleaned up
-	MCFG_DEVICE_ADD("tempcdc", LC89510_TEMP, 0) // cd controller
-	MCFG_SEGACD_HACK_SET_CDC_DO_DMA( sega_segacd_device, SegaCD_CDC_Do_DMA ) // hack
+	LC89510_TEMP(config, m_lc89510_temp, 0); // cd controller
+	m_lc89510_temp->set_cdc_do_dma_callback(FUNC(sega_segacd_device::SegaCD_CDC_Do_DMA), this); // hack
 
-	MCFG_TIMER_ADD_NONE("sw_timer") //stopwatch timer
-	MCFG_TIMER_DRIVER_ADD("stamp_timer", sega_segacd_device, stamp_timer_callback)
-	MCFG_TIMER_DRIVER_ADD("irq3_timer", sega_segacd_device, irq3_timer_callback)
-	MCFG_TIMER_DRIVER_ADD("dma_timer", sega_segacd_device, dma_timer_callback)
+
+	TIMER(config, m_stopwatch_timer).configure_generic(timer_device::expired_delegate()); //stopwatch timer
+	TIMER(config, m_stamp_timer).configure_generic(FUNC(sega_segacd_device::stamp_timer_callback));
+	TIMER(config, m_irq3_timer).configure_generic(FUNC(sega_segacd_device::irq3_timer_callback));
+	TIMER(config, m_dma_timer).configure_generic(FUNC(sega_segacd_device::dma_timer_callback));
 
 	config.set_default_layout(layout_megacd);
 

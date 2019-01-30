@@ -122,7 +122,7 @@ MACHINE_CONFIG_START(a2bus_pcxporter_device::device_add_mconfig)
 	MCFG_DEVICE_IRQ_ACKNOWLEDGE_DEVICE("pic8259", pic8259_device, inta_cb)
 	MCFG_DEVICE_DISABLE()
 
-	PIT8253(config, m_pit8253, 0);
+	PIT8253(config, m_pit8253);
 	m_pit8253->set_clk<0>(A2BUS_7M_CLOCK / 6.0); // heartbeat IRQ
 	m_pit8253->out_handler<0>().set(m_pic8259, FUNC(pic8259_device::ir0_w));
 	m_pit8253->set_clk<1>(A2BUS_7M_CLOCK / 6.0); // DRAM refresh
@@ -147,20 +147,21 @@ MACHINE_CONFIG_START(a2bus_pcxporter_device::device_add_mconfig)
 	m_dma8237->out_dack_callback<2>().set(FUNC(a2bus_pcxporter_device::pc_dack2_w));
 	m_dma8237->out_dack_callback<3>().set(FUNC(a2bus_pcxporter_device::pc_dack3_w));
 
-	PIC8259(config, m_pic8259, 0);
+	PIC8259(config, m_pic8259);
 	m_pic8259->out_int_callback().set_inputline(m_v30, 0);
 
-	MCFG_DEVICE_ADD(m_isabus, ISA8, 0)
-	MCFG_ISA8_CPU(m_v30)
-	MCFG_ISA_OUT_IRQ2_CB(WRITELINE(m_pic8259, pic8259_device, ir2_w))
-	MCFG_ISA_OUT_IRQ3_CB(WRITELINE(m_pic8259, pic8259_device, ir3_w))
-	MCFG_ISA_OUT_IRQ4_CB(WRITELINE(m_pic8259, pic8259_device, ir4_w))
-	MCFG_ISA_OUT_IRQ5_CB(WRITELINE(m_pic8259, pic8259_device, ir5_w))
-	MCFG_ISA_OUT_IRQ6_CB(WRITELINE(m_pic8259, pic8259_device, ir6_w))
-	MCFG_ISA_OUT_IRQ7_CB(WRITELINE(m_pic8259, pic8259_device, ir7_w))
-	MCFG_ISA_OUT_DRQ1_CB(WRITELINE(m_dma8237, am9517a_device, dreq1_w))
-	MCFG_ISA_OUT_DRQ2_CB(WRITELINE(m_dma8237, am9517a_device, dreq2_w))
-	MCFG_ISA_OUT_DRQ3_CB(WRITELINE(m_dma8237, am9517a_device, dreq3_w))
+	ISA8(config, m_isabus, 0);
+	m_isabus->set_memspace(m_v30, AS_PROGRAM);
+	m_isabus->set_iospace(m_v30, AS_IO);
+	m_isabus->irq2_callback().set(m_pic8259, FUNC(pic8259_device::ir2_w));
+	m_isabus->irq3_callback().set(m_pic8259, FUNC(pic8259_device::ir3_w));
+	m_isabus->irq4_callback().set(m_pic8259, FUNC(pic8259_device::ir4_w));
+	m_isabus->irq5_callback().set(m_pic8259, FUNC(pic8259_device::ir5_w));
+	m_isabus->irq6_callback().set(m_pic8259, FUNC(pic8259_device::ir6_w));
+	m_isabus->irq7_callback().set(m_pic8259, FUNC(pic8259_device::ir7_w));
+	m_isabus->drq1_callback().set(m_dma8237, FUNC(am9517a_device::dreq1_w));
+	m_isabus->drq2_callback().set(m_dma8237, FUNC(am9517a_device::dreq2_w));
+	m_isabus->drq3_callback().set(m_dma8237, FUNC(am9517a_device::dreq3_w));
 
 	MCFG_DEVICE_ADD(m_pc_kbdc, PC_KBDC, 0)
 	MCFG_PC_KBDC_OUT_CLOCK_CB(WRITELINE(*this, a2bus_pcxporter_device, keyboard_clock_w))
@@ -631,5 +632,12 @@ WRITE_LINE_MEMBER( a2bus_pcxporter_device::keyboard_data_w )
 WRITE8_MEMBER( a2bus_pcxporter_device::nmi_enable_w )
 {
 	m_nmi_enabled = BIT(data,7);
-	m_isabus->set_nmi_state(m_nmi_enabled);
+	if (!m_nmi_enabled)
+		m_v30->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+}
+
+WRITE_LINE_MEMBER( a2bus_pcxporter_device::iochck_w )
+{
+	if (m_nmi_enabled && !state)
+		m_v30->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }

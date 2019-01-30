@@ -778,8 +778,8 @@ void interpro_state::ioga(machine_config &config)
 
 	// ioga dma and serial dma channels
 	//m_ioga->dma_r_callback<0>().set(unknown); // plotter
-	m_ioga->dma_r_callback<1>().set(INTERPRO_SCSI_DEVICE_TAG, FUNC(ncr53c90a_device::mdma_r));
-	m_ioga->dma_w_callback<1>().set(INTERPRO_SCSI_DEVICE_TAG, FUNC(ncr53c90a_device::mdma_w));
+	m_ioga->dma_r_callback<1>().set(INTERPRO_SCSI_DEVICE_TAG, FUNC(ncr53c90a_device::dma_r));
+	m_ioga->dma_w_callback<1>().set(INTERPRO_SCSI_DEVICE_TAG, FUNC(ncr53c90a_device::dma_w));
 	m_ioga->dma_r_callback<2>().set(m_fdc, FUNC(upd765_family_device::mdma_r));
 	m_ioga->dma_w_callback<2>().set(m_fdc, FUNC(upd765_family_device::mdma_w));
 	m_ioga->serial_dma_r_callback<0>().set(m_scc2, FUNC(z80scc_device::db_r));
@@ -813,7 +813,7 @@ void interpro_state::interpro(machine_config &config)
 	// real-time clock/non-volatile memory
 	MC146818(config, m_rtc, 32.768_kHz_XTAL);
 	m_rtc->set_use_utc(true);
-	m_rtc->irq_callback().set(m_ioga, FUNC(interpro_ioga_device::ir9_w));
+	m_rtc->irq().set(m_ioga, FUNC(interpro_ioga_device::ir9_w));
 
 	// scsi bus and devices
 	NSCSI_BUS(config, m_scsibus, 0);

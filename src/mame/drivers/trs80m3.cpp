@@ -335,35 +335,35 @@ static void trs80_floppies(device_slot_interface &device)
 
 MACHINE_CONFIG_START(trs80m3_state::model3)
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", Z80, 20.2752_MHz_XTAL / 10)
+	MCFG_DEVICE_ADD("maincpu", Z80, 20.2752_MHz_XTAL / 10) // FIXME: actual Model III XTAL is 10.1376 MHz
 	MCFG_DEVICE_PROGRAM_MAP(m3_mem)
 	MCFG_DEVICE_IO_MAP(m3_io)
 	MCFG_DEVICE_PERIODIC_INT_DRIVER(trs80m3_state, rtc_interrupt, 20.2752_MHz_XTAL / 10 / 67584)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(12.672_MHz_XTAL, 800, 0, 640, 264, 0, 240)
+	MCFG_SCREEN_RAW_PARAMS(12.672_MHz_XTAL, 800, 0, 640, 264, 0, 240) // FIXME: these are Model 4 80-column parameters
 	MCFG_SCREEN_UPDATE_DRIVER(trs80m3_state, screen_update_trs80m3)
 	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_trs80m3)
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
+	GFXDECODE(config, "gfxdecode", "palette", gfx_trs80m3);
+	PALETTE(config, "palette", palette_device::MONOCHROME);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 	SPEAKER_SOUND(config, "speaker").add_route(ALL_OUTPUTS, "mono", 0.50);
-	WAVE(config, "wave", "cassette").add_route(ALL_OUTPUTS, "mono", 0.05);
+	WAVE(config, "wave", m_cassette).add_route(ALL_OUTPUTS, "mono", 0.05);
 
 	/* devices */
-	MCFG_CASSETTE_ADD("cassette")
-	MCFG_CASSETTE_FORMATS(trs80l2_cassette_formats)
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	CASSETTE(config, m_cassette);
+	m_cassette->set_formats(trs80l2_cassette_formats);
+	m_cassette->set_default_state(CASSETTE_PLAY);
 
 	MCFG_QUICKLOAD_ADD("quickload", trs80m3_state, trs80_cmd, "cmd", 1.0)
 
-	MCFG_DEVICE_ADD("fdc", FD1793, 4_MHz_XTAL / 4)
-	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(*this, trs80m3_state, intrq_w))
-	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(*this, trs80m3_state, drq_w))
+	FD1793(config, m_fdc, 4_MHz_XTAL / 4);
+	m_fdc->intrq_wr_callback().set(FUNC(trs80m3_state::intrq_w));
+	m_fdc->drq_wr_callback().set(FUNC(trs80m3_state::drq_w));
 
 	// Internal drives
 	MCFG_FLOPPY_DRIVE_ADD("fdc:0", trs80_floppies, "sssd", trs80m3_state::floppy_formats)
@@ -381,7 +381,7 @@ MACHINE_CONFIG_START(trs80m3_state::model3)
 
 	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
-	COM8116(config, m_brg, 5.0688_MHz_XTAL);   // BR1943 (or BR1941L)
+	COM8116(config, m_brg, 20.2752_MHz_XTAL / 4);   // BR1943 (or BR1941L)
 	m_brg->fr_handler().set(m_uart, FUNC(ay31015_device::write_rcp));
 	m_brg->ft_handler().set(m_uart, FUNC(ay31015_device::write_tcp));
 

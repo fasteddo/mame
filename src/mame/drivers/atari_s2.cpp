@@ -484,7 +484,7 @@ MACHINE_CONFIG_START(atari_s2_state::atari_s2)
 	MCFG_DEVICE_ADD("maincpu", M6800, XTAL(4'000'000) / 4)
 	MCFG_DEVICE_PROGRAM_MAP(atari_s2_map)
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
-	MCFG_WATCHDOG_ADD("watchdog")
+	WATCHDOG_TIMER(config, "watchdog");
 
 	/* Sound */
 	genpin_audio(config);
@@ -499,8 +499,8 @@ MACHINE_CONFIG_START(atari_s2_state::atari_s2)
 	/* Video */
 	config.set_default_layout(layout_atari_s2);
 
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("irq", atari_s2_state, irq, attotime::from_hz(XTAL(4'000'000) / 8192))
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("timer_s", atari_s2_state, timer_s, attotime::from_hz(150000))
+	TIMER(config, "irq").configure_periodic(FUNC(atari_s2_state::irq), attotime::from_hz(XTAL(4'000'000) / 8192));
+	TIMER(config, "timer_s").configure_periodic(FUNC(atari_s2_state::timer_s), attotime::from_hz(150000));
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(atari_s2_state::atari_s3)

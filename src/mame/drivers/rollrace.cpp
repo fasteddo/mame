@@ -275,27 +275,23 @@ MACHINE_CONFIG_START(rollrace_state::rollrace)
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0,256-1,16, 255-16)
 	MCFG_SCREEN_UPDATE_DRIVER(rollrace_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, rollrace_state, vblank_irq))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_rollrace)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(rollrace_state, rollrace)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_rollrace);
+	PALETTE(config, m_palette, FUNC(rollrace_state::rollrace_palette), 256);
 
 	/* sound hardware */
 	SPEAKER(config, "lspeaker").front_left();
 	SPEAKER(config, "rspeaker").front_right();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	GENERIC_LATCH_8(config, "soundlatch");
 
-	MCFG_DEVICE_ADD("ay1", AY8910,XTAL(24'000'000)/16) /* verified on pcb */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.10)
+	AY8910(config, "ay1", XTAL(24'000'000)/16).add_route(ALL_OUTPUTS, "rspeaker", 0.10); /* verified on pcb */
 
-	MCFG_DEVICE_ADD("ay2", AY8910,XTAL(24'000'000)/16) /* verified on pcb */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.10)
+	AY8910(config, "ay2", XTAL(24'000'000)/16).add_route(ALL_OUTPUTS, "rspeaker", 0.10); /* verified on pcb */
 
-	MCFG_DEVICE_ADD("ay3", AY8910,XTAL(24'000'000)/16) /* verified on pcb */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.10)
+	AY8910(config, "ay3", XTAL(24'000'000)/16).add_route(ALL_OUTPUTS, "lspeaker", 0.10); /* verified on pcb */
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(rollrace_state::rollace2)

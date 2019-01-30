@@ -46,7 +46,7 @@ private:
 	DECLARE_READ8_MEMBER(k7658_data_r);
 	DECLARE_WRITE8_MEMBER(k7658_data_w);
 	DECLARE_WRITE8_MEMBER(rt1715_rom_disable);
-	DECLARE_PALETTE_INIT(rt1715);
+	void rt1715_palette(palette_device &palette) const;
 	I8275_DRAW_CHARACTER_MEMBER( crtc_display_pixels );
 
 	void k7658_io(address_map &map);
@@ -59,7 +59,7 @@ private:
 
 	int m_led1_val;
 	int m_led2_val;
-	required_device<cpu_device> m_maincpu;
+	required_device<z80_device> m_maincpu;
 	required_device<ram_device> m_ram;
 };
 
@@ -179,11 +179,11 @@ GFXDECODE_END
     PALETTE
 ***************************************************************************/
 
-PALETTE_INIT_MEMBER(rt1715_state, rt1715)
+void rt1715_state::rt1715_palette(palette_device &palette) const
 {
-	palette.set_pen_color(0, rgb_t(0x00, 0x00, 0x00)); /* black */
-	palette.set_pen_color(1, rgb_t(0x00, 0x7f, 0x00)); /* low intensity */
-	palette.set_pen_color(2, rgb_t(0x00, 0xff, 0x00)); /* high intensitiy */
+	palette.set_pen_color(0, rgb_t(0x00, 0x00, 0x00)); // black
+	palette.set_pen_color(1, rgb_t(0x00, 0x7f, 0x00)); // low intensity
+	palette.set_pen_color(2, rgb_t(0x00, 0xff, 0x00)); // high intensitiy
 }
 
 
@@ -286,11 +286,10 @@ static const z80_daisy_config rt1715_daisy_chain[] =
 
 MACHINE_CONFIG_START(rt1715_state::rt1715)
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", Z80, 9.832_MHz_XTAL / 4)
-	MCFG_DEVICE_PROGRAM_MAP(rt1715_mem)
-	MCFG_DEVICE_IO_MAP(rt1715_io)
-	MCFG_Z80_DAISY_CHAIN(rt1715_daisy_chain)
-
+	Z80(config, m_maincpu, 9.832_MHz_XTAL / 4);
+	m_maincpu->set_addrmap(AS_PROGRAM, &rt1715_state::rt1715_mem);
+	m_maincpu->set_addrmap(AS_IO, &rt1715_state::rt1715_io);
+	m_maincpu->set_daisy_config(rt1715_daisy_chain);
 
 	/* keyboard */
 	MCFG_DEVICE_ADD("keyboard", Z80, 683000)
@@ -302,26 +301,25 @@ MACHINE_CONFIG_START(rt1715_state::rt1715)
 	MCFG_SCREEN_UPDATE_DEVICE("a26", i8275_device, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(13.824_MHz_XTAL, 864, 0, 624, 320, 0, 300) // ?
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_rt1715)
-	MCFG_PALETTE_ADD("palette", 3)
-	MCFG_PALETTE_INIT_OWNER(rt1715_state, rt1715)
+	GFXDECODE(config, "gfxdecode", "palette", gfx_rt1715);
+	PALETTE(config, "palette", FUNC(rt1715_state::rt1715_palette), 3);
 
-	MCFG_DEVICE_ADD("a26", I8275, 13.824_MHz_XTAL / 8)
-	MCFG_I8275_CHARACTER_WIDTH(8)
-	MCFG_I8275_DRAW_CHARACTER_CALLBACK_OWNER(rt1715_state, crtc_display_pixels)
+	i8275_device &a26(I8275(config, "a26", 13.824_MHz_XTAL / 8));
+	a26.set_character_width(8);
+	a26.set_display_callback(FUNC(rt1715_state::crtc_display_pixels), this);
 
-	MCFG_DEVICE_ADD("a30", Z80CTC, 9.832_MHz_XTAL / 4)
-	MCFG_Z80CTC_ZC0_CB(WRITELINE("a29", z80sio_device, txca_w))
-	MCFG_Z80CTC_ZC2_CB(WRITELINE("a29", z80sio_device, rxtxcb_w))
+	z80ctc_device& ctc(Z80CTC(config, "a30", 9.832_MHz_XTAL / 4));
+	ctc.zc_callback<0>().set("a29", FUNC(z80sio_device::txca_w));
+	ctc.zc_callback<2>().set("a29", FUNC(z80sio_device::rxtxcb_w));
 
 	Z80SIO(config, "a29", 9.832_MHz_XTAL / 4);
 
 	/* floppy */
-	MCFG_DEVICE_ADD("a71", Z80PIO, 9.832_MHz_XTAL / 4)
-	MCFG_DEVICE_ADD("a72", Z80PIO, 9.832_MHz_XTAL / 4)
+	Z80PIO(config, "a71", 9.832_MHz_XTAL / 4);
+	Z80PIO(config, "a72", 9.832_MHz_XTAL / 4);
 
 	/* internal ram */
-	RAM(config, RAM_TAG).set_default_size("64K").set_default_value(0);
+	RAM(config, RAM_TAG).set_default_size("64K").set_default_value(0x00);
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(rt1715_state::rt1715w)

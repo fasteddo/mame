@@ -43,8 +43,13 @@ Game                       PCB #       Sticker on PCB    Sticker on cart     IC1
 -------------------------------------------------------------------------------------------------------------------------------------------------
 Altered Beast              171-5782    837-6963-01       610-0239-01         MPR-12538F     (834200A)     EPR-12368-01   (27C256)  n/a
 Space Harrier II           171-5782    837-6963-02       610-0239-02         MPR-11934      (834200)      EPR-12368-02   (27256)   n/a
+Super Thunder Blade                                      610-0239-03
+Great Golf                                               610-0239-04
+Afterburner                                              610-0239-05
 Out Run                    171-5783    837-6963-06       610-0239-06         MPR-11078      (Mask)        EPR-12368-06   (27256)   n/a
 Alien Syndrome             171-5783    837-6963-07       610-0239-07         MPR-11194      (232011)      EPR-12368-07   (27256)   n/a
+Shinobi                                                  610-0239-08
+Fantasy Zone                                             610-0239-09
 Afterburner                171-5784    837-6963-10       610-0239-10         315-5235       (custom)      MPR-11271-T    (834000)  EPR-12368-10 (27256)
 Great Football             171-5783    837-6963-19       610-0239-19         MPR-10576F     (831000)      EPR-12368-19   (27256)   n/a
 World Championship Soccer  171-5782    837-6963-21       610-0239-21         MPR-12607B     (uPD23C4000)  EPR-12368-21   (27256)   n/a
@@ -719,8 +724,7 @@ MACHINE_CONFIG_START(mtech_state::megatech)
 	MCFG_SCREEN_UPDATE_DRIVER(mtech_state, screen_update_main)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, mtech_state, screen_vblank_main))
 
-	MCFG_DEVICE_MODIFY("gen_vdp")
-	MCFG_SEGA315_5313_INT_CB(INPUTLINE("genesis_snd_z80", 0))
+	m_vdp->irq().set_inputline(m_z80snd, 0);
 
 	MCFG_SCREEN_ADD("menu", RASTER)
 	// check frq
@@ -729,10 +733,10 @@ MACHINE_CONFIG_START(mtech_state::megatech)
 			sega315_5124_device::HEIGHT_NTSC, sega315_5124_device::TBORDER_START + sega315_5124_device::NTSC_224_TBORDER_HEIGHT, sega315_5124_device::TBORDER_START + sega315_5124_device::NTSC_224_TBORDER_HEIGHT + 224)
 	MCFG_SCREEN_UPDATE_DRIVER(mtech_state, screen_update_menu)
 
-	MCFG_DEVICE_ADD("vdp1", SEGA315_5246, 0)
-	MCFG_SEGA315_5246_SET_SCREEN("menu")
-	MCFG_SEGA315_5246_IS_PAL(false)
-	MCFG_SEGA315_5246_INT_CB(INPUTLINE("mtbios", 0))
+	SEGA315_5246(config, m_vdp1, 0);
+	m_vdp1->set_screen("menu");
+	m_vdp1->set_is_pal(false);
+	m_vdp1->irq().set_inputline(m_bioscpu, 0);
 
 	/* sound hardware */
 	MCFG_DEVICE_ADD("sn2", SN76496, MASTER_CLOCK/15)

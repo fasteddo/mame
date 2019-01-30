@@ -255,8 +255,7 @@ MACHINE_CONFIG_START(poly_state::poly)
 
 	ADDRESS_MAP_BANK(config, "bankdev").set_map(&poly_state::poly_bank).set_options(ENDIANNESS_LITTLE, 8, 17, 0x10000);
 
-	MCFG_INPUT_MERGER_ANY_HIGH("irqs")
-	MCFG_INPUT_MERGER_OUTPUT_HANDLER(INPUTLINE("maincpu", M6809_IRQ_LINE))
+	INPUT_MERGER_ANY_HIGH(config, "irqs").output_handler().set_inputline(m_maincpu, M6809_IRQ_LINE);
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -266,13 +265,13 @@ MACHINE_CONFIG_START(poly_state::poly)
 	MCFG_SCREEN_VISIBLE_AREA(0, 40 * 12 - 1, 0, 24 * 20 - 1)
 	MCFG_SCREEN_UPDATE_DRIVER(poly_state, screen_update)
 
-	MCFG_DEVICE_ADD("saa5050_1", SAA5050, 12.0576_MHz_XTAL / 2)
-	MCFG_SAA5050_D_CALLBACK(READ8(*this, poly_state, videoram_1_r))
-	MCFG_SAA5050_SCREEN_SIZE(40, 24, 40)
+	SAA5050(config, m_trom[0], 12.0576_MHz_XTAL / 2);
+	m_trom[0]->d_cb().set(FUNC(poly_state::videoram_1_r));
+	m_trom[0]->set_screen_size(40, 24, 40);
 
-	MCFG_DEVICE_ADD("saa5050_2", SAA5050, 12.0576_MHz_XTAL / 2)
-	MCFG_SAA5050_D_CALLBACK(READ8(*this, poly_state, videoram_2_r))
-	MCFG_SAA5050_SCREEN_SIZE(40, 24, 40)
+	SAA5050(config, m_trom[1], 12.0576_MHz_XTAL / 2);
+	m_trom[1]->d_cb().set(FUNC(poly_state::videoram_2_r));
+	m_trom[1]->set_screen_size(40, 24, 40);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
@@ -301,22 +300,22 @@ MACHINE_CONFIG_START(poly_state::poly)
 	//m_ptm->irq_callback().set("irqs", FUNC(input_merger_device::in_w<1>));
 
 	/* keyboard encoder */
-	//MCFG_DEVICE_ADD("kr2376", KR2376_12, 50000)
-	//MCFG_KR2376_MATRIX_X0(IOPORT("X0"))
-	//MCFG_KR2376_MATRIX_X1(IOPORT("X1"))
-	//MCFG_KR2376_MATRIX_X2(IOPORT("X2"))
-	//MCFG_KR2376_MATRIX_X3(IOPORT("X3"))
-	//MCFG_KR2376_MATRIX_X4(IOPORT("X4"))
-	//MCFG_KR2376_MATRIX_X5(IOPORT("X5"))
-	//MCFG_KR2376_MATRIX_X6(IOPORT("X6"))
-	//MCFG_KR2376_MATRIX_X7(IOPORT("X7"))
-	//MCFG_KR2376_SHIFT_CB(READLINE(*this, poly_state, kbd_shift_r))
-	//MCFG_KR2376_CONTROL_CB(READLINE(*this, poly_state, kbd_control_r))
-	//MCFG_KR2376_STROBE_CB(WRITELINE("pia1", pia6821_device, cb1_w))
+	//KR2376_12(config, m_kr2376, 50000);
+	//m_kr2376->x<0>().set_ioport("X0");
+	//m_kr2376->x<1>().set_ioport("X1");
+	//m_kr2376->x<2>().set_ioport("X2");
+	//m_kr2376->x<3>().set_ioport("X3");
+	//m_kr2376->x<4>().set_ioport("X4");
+	//m_kr2376->x<5>().set_ioport("X5");
+	//m_kr2376->x<6>().set_ioport("X6");
+	//m_kr2376->x<7>().set_ioport("X7");
+	//m_kr2376->shift().set(FUNC(poly_state::kbd_shift_r));
+	//m_kr2376->control().set(FUNC(poly_state::kbd_control_r));
+	//m_kr2376->strobe().set("pia1", FUNC(pia6821_device::cb1_w));
 
 	/* generic keyboard until ROM in KR2376-12 is known */
-	MCFG_DEVICE_ADD("keyboard", GENERIC_KEYBOARD, 0)
-	MCFG_GENERIC_KEYBOARD_CB(PUT(poly_state, kbd_put))
+	generic_keyboard_device &keyboard(GENERIC_KEYBOARD(config, "keyboard", 0));
+	keyboard.set_keyboard_callback(FUNC(poly_state::kbd_put));
 
 	/* video control */
 	PIA6821(config, m_pia[0], 0);
@@ -361,9 +360,9 @@ MACHINE_CONFIG_START(polydev_state::polydev)
 	poly(config);
 
 	/* fdc */
-	MCFG_DEVICE_ADD("fdc", FD1771, 12.0_MHz_XTAL / 12)
-	MCFG_WD_FDC_HLD_CALLBACK(WRITELINE(*this, polydev_state, motor_w))
-	MCFG_WD_FDC_FORCE_READY
+	FD1771(config, m_fdc, 12.0_MHz_XTAL / 12);
+	m_fdc->hld_wr_callback().set(FUNC(polydev_state::motor_w));
+	m_fdc->set_force_ready(true);
 
 	MCFG_FLOPPY_DRIVE_ADD("fdc:0", poly_floppies, "525sd", polydev_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_SOUND(true)

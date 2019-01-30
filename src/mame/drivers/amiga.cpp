@@ -1561,8 +1561,7 @@ MACHINE_CONFIG_START(amiga_state::amiga_base)
 	// video
 	pal_video(config);
 
-	MCFG_PALETTE_ADD("palette", 4096)
-	MCFG_PALETTE_INIT_OWNER(amiga_state, amiga)
+	PALETTE(config, m_palette, FUNC(amiga_state::amiga_palette), 4096);
 
 	MCFG_VIDEO_START_OVERRIDE(amiga_state, amiga)
 
@@ -1608,12 +1607,12 @@ MACHINE_CONFIG_START(amiga_state::amiga_base)
 	MCFG_FLOPPY_DRIVE_SOUND(true)
 
 	// rs232
-	MCFG_DEVICE_ADD("rs232", RS232_PORT, default_rs232_devices, nullptr)
-	MCFG_RS232_RXD_HANDLER(WRITELINE(*this, amiga_state, rs232_rx_w))
-	MCFG_RS232_DCD_HANDLER(WRITELINE(*this, amiga_state, rs232_dcd_w))
-	MCFG_RS232_DSR_HANDLER(WRITELINE(*this, amiga_state, rs232_dsr_w))
-	MCFG_RS232_RI_HANDLER(WRITELINE(*this, amiga_state, rs232_ri_w))
-	MCFG_RS232_CTS_HANDLER(WRITELINE(*this, amiga_state, rs232_cts_w))
+	rs232_port_device &rs232(RS232_PORT(config, "rs232", default_rs232_devices, nullptr));
+	rs232.rxd_handler().set(FUNC(amiga_state::rs232_rx_w));
+	rs232.dcd_handler().set(FUNC(amiga_state::rs232_dcd_w));
+	rs232.dsr_handler().set(FUNC(amiga_state::rs232_dsr_w));
+	rs232.ri_handler().set(FUNC(amiga_state::rs232_ri_w));
+	rs232.cts_handler().set(FUNC(amiga_state::rs232_cts_w));
 
 	// centronics
 	MCFG_DEVICE_ADD("centronics", CENTRONICS, centronics_devices, "printer")
@@ -1662,10 +1661,8 @@ MACHINE_CONFIG_START(a1000_state::a1000n)
 	ntsc_video(config);
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -1689,7 +1686,7 @@ MACHINE_CONFIG_START(a2000_state::a2000)
 	ADDRESS_MAP_BANK(config, "overlay").set_map(&amiga_state::overlay_512kb_map).set_options(ENDIANNESS_BIG, 16, 22, 0x200000);
 
 	// real-time clock
-	MCFG_DEVICE_ADD("u65", MSM6242, XTAL(32'768))
+	MSM6242(config, m_rtc, XTAL(32'768));
 
 	// cpu slot
 	MCFG_EXPANSION_SLOT_ADD("maincpu", a2000_expansion_cards, nullptr)
@@ -1714,10 +1711,8 @@ MACHINE_CONFIG_START(a2000_state::a2000n)
 	ntsc_video(config);
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -1751,10 +1746,8 @@ MACHINE_CONFIG_START(a500_state::a500n)
 	ntsc_video(config);
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -1795,7 +1788,7 @@ MACHINE_CONFIG_START(cdtv_state::cdtv)
 	NVRAM(config, "memcard", nvram_device::DEFAULT_ALL_0);
 
 	// real-time clock
-	MCFG_DEVICE_ADD("u61", MSM6242, XTAL(32'768))
+	MSM6242(config, m_rtc, XTAL(32'768));
 
 	// cd-rom controller
 	AMIGA_DMAC(config, m_dmac, amiga_state::CLK_7M_PAL);
@@ -1830,10 +1823,8 @@ MACHINE_CONFIG_START(cdtv_state::cdtvn)
 	ntsc_video(config);
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("u36")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 	MCFG_DEVICE_MODIFY("fdc")
@@ -1855,7 +1846,7 @@ MACHINE_CONFIG_START(a3000_state::a3000)
 	ADDRESS_MAP_BANK(config, "overlay").set_map(&amiga_state::overlay_1mb_map32).set_options(ENDIANNESS_BIG, 32, 22, 0x200000);
 
 	// real-time clock
-	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL(32'768))
+	RP5C01(config, "rtc", XTAL(32'768));
 
 	// todo: zorro3 slots, super dmac, scsi
 
@@ -1868,10 +1859,8 @@ MACHINE_CONFIG_START(a3000_state::a3000n)
 	a3000(config);
 	MCFG_DEVICE_REMOVE("screen")
 	ntsc_video(config);
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -1892,7 +1881,7 @@ MACHINE_CONFIG_START(a500p_state::a500p)
 	ADDRESS_MAP_BANK(config, "overlay").set_map(&amiga_state::overlay_1mb_map).set_options(ENDIANNESS_BIG, 16, 22, 0x200000);
 
 	// real-time clock
-	MCFG_DEVICE_ADD("u9", MSM6242, XTAL(32'768))
+	MSM6242(config, m_rtc, XTAL(32'768));
 
 	// cpu slot
 	MCFG_EXPANSION_SLOT_ADD("maincpu", a500_expansion_cards, nullptr)
@@ -1909,10 +1898,8 @@ MACHINE_CONFIG_START(a500p_state::a500pn)
 	ntsc_video(config);
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -1932,12 +1919,13 @@ MACHINE_CONFIG_START(a600_state::a600)
 
 	ADDRESS_MAP_BANK(config, "overlay").set_map(&amiga_state::overlay_2mb_map16).set_options(ENDIANNESS_BIG, 16, 22, 0x200000);
 
-	MCFG_GAYLE_ADD("gayle", amiga_state::CLK_28M_PAL / 2, a600_state::GAYLE_ID)
-	MCFG_GAYLE_INT2_HANDLER(WRITELINE(*this, a600_state, gayle_int2_w))
-	MCFG_GAYLE_CS0_READ_HANDLER(READ16("ata", ata_interface_device, cs0_r))
-	MCFG_GAYLE_CS0_WRITE_HANDLER(WRITE16("ata", ata_interface_device, cs0_w))
-	MCFG_GAYLE_CS1_READ_HANDLER(READ16("ata", ata_interface_device, cs1_r))
-	MCFG_GAYLE_CS1_WRITE_HANDLER(WRITE16("ata", ata_interface_device, cs1_w))
+	gayle_device &gayle(GAYLE(config, "gayle", amiga_state::CLK_28M_PAL / 2));
+	gayle.set_id(a600_state::GAYLE_ID);
+	gayle.int2_handler().set(FUNC(a600_state::gayle_int2_w));
+	gayle.cs0_read_handler().set("ata", FUNC(ata_interface_device::cs0_r));
+	gayle.cs0_write_handler().set("ata", FUNC(ata_interface_device::cs0_w));
+	gayle.cs1_read_handler().set("ata", FUNC(ata_interface_device::cs1_r));
+	gayle.cs1_write_handler().set("ata", FUNC(ata_interface_device::cs1_w));
 
 	ata_interface_device &ata(ATA_INTERFACE(config, "ata").options(ata_devices, "hdd", nullptr, false));
 	ata.irq_handler().set("gayle", FUNC(gayle_device::ide_interrupt_w));
@@ -1958,10 +1946,8 @@ MACHINE_CONFIG_START(a600_state::a600n)
 	ntsc_video(config);
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -1989,12 +1975,13 @@ MACHINE_CONFIG_START(a1200_state::a1200)
 
 	MCFG_VIDEO_START_OVERRIDE(amiga_state, amiga_aga)
 
-	MCFG_GAYLE_ADD("gayle", amiga_state::CLK_28M_PAL / 2, a1200_state::GAYLE_ID)
-	MCFG_GAYLE_INT2_HANDLER(WRITELINE(*this, a1200_state, gayle_int2_w))
-	MCFG_GAYLE_CS0_READ_HANDLER(READ16("ata", ata_interface_device, cs0_r))
-	MCFG_GAYLE_CS0_WRITE_HANDLER(WRITE16("ata", ata_interface_device, cs0_w))
-	MCFG_GAYLE_CS1_READ_HANDLER(READ16("ata", ata_interface_device, cs1_r))
-	MCFG_GAYLE_CS1_WRITE_HANDLER(WRITE16("ata", ata_interface_device, cs1_w))
+	gayle_device &gayle(GAYLE(config, "gayle", amiga_state::CLK_28M_PAL / 2));
+	gayle.set_id(a1200_state::GAYLE_ID);
+	gayle.int2_handler().set(FUNC(a1200_state::gayle_int2_w));
+	gayle.cs0_read_handler().set("ata", FUNC(ata_interface_device::cs0_r));
+	gayle.cs0_write_handler().set("ata", FUNC(ata_interface_device::cs0_w));
+	gayle.cs1_read_handler().set("ata", FUNC(ata_interface_device::cs1_r));
+	gayle.cs1_write_handler().set("ata", FUNC(ata_interface_device::cs1_w));
 
 	ata_interface_device &ata(ATA_INTERFACE(config, "ata").options(ata_devices, "hdd", nullptr, false));
 	ata.irq_handler().set("gayle", FUNC(gayle_device::ide_interrupt_w));
@@ -2025,10 +2012,8 @@ MACHINE_CONFIG_START(a1200_state::a1200n)
 	MCFG_SCREEN_NO_PALETTE
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -2056,7 +2041,7 @@ MACHINE_CONFIG_START(a4000_state::a4000)
 	MCFG_VIDEO_START_OVERRIDE(amiga_state, amiga_aga)
 
 	// real-time clock
-	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL(32'768))
+	RP5C01(config, "rtc", XTAL(32'768));
 
 	// ide
 	ata_interface_device &ata(ATA_INTERFACE(config, "ata").options(ata_devices, "hdd", nullptr, false));
@@ -2079,10 +2064,8 @@ MACHINE_CONFIG_START(a4000_state::a4000n)
 	MCFG_SCREEN_NO_PALETTE
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -2106,10 +2089,8 @@ MACHINE_CONFIG_START(a4000_state::a400030n)
 	MCFG_SCREEN_NO_PALETTE
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -2123,9 +2104,7 @@ MACHINE_CONFIG_START(cd32_state::cd32)
 
 	ADDRESS_MAP_BANK(config, "overlay").set_map(&amiga_state::overlay_2mb_map32).set_options(ENDIANNESS_BIG, 32, 22, 0x200000);
 
-	MCFG_I2CMEM_ADD("i2cmem")
-	MCFG_I2CMEM_PAGE_SIZE(16)
-	MCFG_I2CMEM_DATA_SIZE(1024)
+	I2CMEM(config, "i2cmem", 0).set_page_size(16).set_data_size(1024);
 
 	akiko_device &akiko(AKIKO(config, "akiko", 0));
 	akiko.mem_r_callback().set(FUNC(amiga_state::chip_ram_r));
@@ -2147,12 +2126,10 @@ MACHINE_CONFIG_START(cd32_state::cd32)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_MOS6526_PA_OUTPUT_CALLBACK(WRITE8(*this, cd32_state, akiko_cia_0_port_a_write))
-	MCFG_MOS6526_SP_CALLBACK(NOOP)
+	m_cia_0->pa_wr_callback().set(FUNC(cd32_state::akiko_cia_0_port_a_write));
+	m_cia_0->sp_wr_callback().set_nop();
 
-	MCFG_CDROM_ADD("cdrom")
-	MCFG_CDROM_INTERFACE("cd32_cdrom")
+	CDROM(config, "cdrom").set_interface("cd32_cdrom");
 	MCFG_SOFTWARE_LIST_ADD("cd_list", "cd32")
 MACHINE_CONFIG_END
 
@@ -2168,10 +2145,8 @@ MACHINE_CONFIG_START(cd32_state::cd32n)
 	MCFG_SCREEN_NO_PALETTE
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END
@@ -2196,10 +2171,8 @@ MACHINE_CONFIG_START(a4000_state::a4000tn)
 	MCFG_SCREEN_NO_PALETTE
 	MCFG_DEVICE_MODIFY("amiga")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_C1_NTSC)
-	MCFG_DEVICE_MODIFY("cia_0")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
-	MCFG_DEVICE_MODIFY("cia_1")
-	MCFG_DEVICE_CLOCK(amiga_state::CLK_E_NTSC)
+	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
+	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	MCFG_DEVICE_MODIFY("fdc")
 	MCFG_DEVICE_CLOCK(amiga_state::CLK_7M_NTSC)
 MACHINE_CONFIG_END

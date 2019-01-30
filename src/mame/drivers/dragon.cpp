@@ -18,7 +18,7 @@
 #include "formats/vdk_dsk.h"
 #include "formats/dmk_dsk.h"
 #include "formats/sdf_dsk.h"
-#include "imagedev/flopdrv.h"
+#include "imagedev/floppy.h"
 
 #include "bus/coco/dragon_fdc.h"
 #include "bus/coco/dragon_jcbsnd.h"
@@ -214,22 +214,23 @@ MACHINE_CONFIG_START(dragon_state::dragon_base)
 	pia1.irqa_handler().set(FUNC(coco_state::pia1_firq_a));
 	pia1.irqb_handler().set(FUNC(coco_state::pia1_firq_b));
 
-	MCFG_DEVICE_ADD(SAM_TAG, SAM6883, 14.218_MHz_XTAL, MAINCPU_TAG)
-	MCFG_SAM6883_RES_CALLBACK(READ8(*this, dragon_state, sam_read))
-	MCFG_CASSETTE_ADD("cassette")
-	MCFG_CASSETTE_FORMATS(coco_cassette_formats)
-	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
-	MCFG_CASSETTE_INTERFACE("dragon_cass")
+	SAM6883(config, m_sam, 14.218_MHz_XTAL, m_maincpu);
+	m_sam->res_rd_callback().set(FUNC(dragon_state::sam_read));
+	CASSETTE(config, m_cassette);
+	m_cassette->set_formats(coco_cassette_formats);
+	m_cassette->set_default_state(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED);
+	m_cassette->set_interface("dragon_cass");
 
-	MCFG_DEVICE_ADD(PRINTER_TAG, PRINTER, 0)
+	PRINTER(config, m_printer, 0);
 
 	// video hardware
-	MCFG_SCREEN_MC6847_PAL_ADD(SCREEN_TAG, VDG_TAG)
+	SCREEN(config, SCREEN_TAG, SCREEN_TYPE_RASTER);
 
-	MCFG_DEVICE_ADD(VDG_TAG, MC6847_PAL, 4.433619_MHz_XTAL)
-	MCFG_MC6847_HSYNC_CALLBACK(WRITELINE(*this, dragon_state, horizontal_sync))
-	MCFG_MC6847_FSYNC_CALLBACK(WRITELINE(*this, dragon_state, field_sync))
-	MCFG_MC6847_INPUT_CALLBACK(READ8(SAM_TAG, sam6883_device, display_read))
+	MC6847_PAL(config, m_vdg, 4.433619_MHz_XTAL);
+	m_vdg->set_screen(SCREEN_TAG);
+	m_vdg->hsync_wr_callback().set(FUNC(dragon_state::horizontal_sync));
+	m_vdg->fsync_wr_callback().set(FUNC(dragon_state::field_sync));
+	m_vdg->input_callback().set(m_sam, FUNC(sam6883_device::display_read));
 
 	// sound hardware
 	coco_sound(config);
@@ -284,12 +285,12 @@ MACHINE_CONFIG_START(dragon64_state::dragon64h)
 	m_ram->set_default_size("64K");
 MACHINE_CONFIG_END
 
-MACHINE_CONFIG_START(dragon200e_state::dragon200e)
+void dragon200e_state::dragon200e(machine_config &config)
+{
 	dragon64(config);
 	// video hardware
-	MCFG_DEVICE_MODIFY(VDG_TAG)
-	MCFG_MC6847_CHARROM_CALLBACK(dragon200e_state, char_rom_r)
-MACHINE_CONFIG_END
+	m_vdg->set_get_char_rom(FUNC(dragon200e_state::char_rom_r));
+}
 
 MACHINE_CONFIG_START(d64plus_state::d64plus)
 	dragon64(config);
@@ -300,13 +301,14 @@ MACHINE_CONFIG_START(d64plus_state::d64plus)
 	MCFG_SCREEN_SIZE(640, 264)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 264-1)
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", hd6845_device, screen_update)
-	MCFG_PALETTE_ADD_MONOCHROME("palette")
+	PALETTE(config, m_palette, palette_device::MONOCHROME);
 
 	// crtc
-	MCFG_MC6845_ADD("crtc", HD6845, "plus_screen", 14.218_MHz_XTAL / 4 / 2)
-	MCFG_MC6845_SHOW_BORDER_AREA(false)
-	MCFG_MC6845_CHAR_WIDTH(8)
-	MCFG_MC6845_UPDATE_ROW_CB(d64plus_state, crtc_update_row)
+	HD6845(config, m_crtc, 14.218_MHz_XTAL / 4 / 2);
+	m_crtc->set_screen("plus_screen");
+	m_crtc->set_show_border_area(false);
+	m_crtc->set_char_width(8);
+	m_crtc->set_update_row_callback(FUNC(d64plus_state::crtc_update_row), this);
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(dragon_alpha_state::dgnalpha)
@@ -325,9 +327,9 @@ MACHINE_CONFIG_START(dragon_alpha_state::dgnalpha)
 	acia.set_xtal(1.8432_MHz_XTAL);
 
 	// floppy
-	MCFG_DEVICE_ADD(WD2797_TAG, WD2797, 1_MHz_XTAL)
-	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(*this, dragon_alpha_state, fdc_intrq_w))
-	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(*this, dragon_alpha_state, fdc_drq_w))
+	WD2797(config, m_fdc, 1_MHz_XTAL);
+	m_fdc->intrq_wr_callback().set(FUNC(dragon_alpha_state::fdc_intrq_w));
+	m_fdc->drq_wr_callback().set(FUNC(dragon_alpha_state::fdc_drq_w));
 
 	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG ":0", dragon_alpha_floppies, "dd", dragon_alpha_state::dragon_formats)
 	MCFG_FLOPPY_DRIVE_SOUND(true)
@@ -339,10 +341,10 @@ MACHINE_CONFIG_START(dragon_alpha_state::dgnalpha)
 	MCFG_FLOPPY_DRIVE_SOUND(true)
 
 	// sound hardware
-	MCFG_DEVICE_ADD(AY8912_TAG, AY8912, 1000000)
-	MCFG_AY8910_PORT_A_READ_CB(READ8(*this, dragon_alpha_state, psg_porta_read))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(*this, dragon_alpha_state, psg_porta_write))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.75)
+	ay8912_device &ay8912(AY8912(config, AY8912_TAG, 1000000));
+	ay8912.port_a_read_callback().set(FUNC(dragon_alpha_state::psg_porta_read));
+	ay8912.port_a_write_callback().set(FUNC(dragon_alpha_state::psg_porta_write));
+	ay8912.add_route(ALL_OUTPUTS, "speaker", 0.75);
 
 	// pia 2
 	pia6821_device &pia2(PIA6821(config, PIA2_TAG, 0));
@@ -359,11 +361,16 @@ MACHINE_CONFIG_END
 MACHINE_CONFIG_START(dragon64_state::tanodr64)
 	dragon64(config);
 	MCFG_DEVICE_MODIFY(":")
-	MCFG_DEVICE_CLOCK(14.318181_MHz_XTAL / 4)
+	MCFG_DEVICE_CLOCK(14.318181_MHz_XTAL / 16)
+
+	m_sam->set_clock(14.318181_MHz_XTAL);
 
 	// video hardware
-	MCFG_SCREEN_MODIFY(SCREEN_TAG)
-	MCFG_SCREEN_REFRESH_RATE(60)
+	MC6847_NTSC(config.replace(), m_vdg, 14.318181_MHz_XTAL / 4);
+	m_vdg->set_screen(SCREEN_TAG);
+	m_vdg->hsync_wr_callback().set(FUNC(dragon_state::horizontal_sync));
+	m_vdg->fsync_wr_callback().set(FUNC(dragon_state::field_sync));
+	m_vdg->input_callback().set(m_sam, FUNC(sam6883_device::display_read));
 
 	// cartridge
 	MCFG_DEVICE_MODIFY(CARTRIDGE_TAG)

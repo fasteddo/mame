@@ -100,7 +100,8 @@ DEVICE_INPUT_DEFAULTS_END
 //  machine configuration
 //-------------------------------------------------
 
-MACHINE_CONFIG_START(ss50_mpc_device::device_add_mconfig)
+void ss50_mpc_device::device_add_mconfig(machine_config &config)
+{
 	PIA6821(config, m_pia, 0); // actually MC6820
 	m_pia->writepa_handler().set("outgate", FUNC(input_merger_device::in_w<0>)).bit(0);
 	m_pia->cb2_handler().set(FUNC(ss50_mpc_device::reader_control_w));
@@ -111,19 +112,17 @@ MACHINE_CONFIG_START(ss50_mpc_device::device_add_mconfig)
 	//m_pia->irqa_handler().set(FUNC(ss50_mpc_device::pia_irq_w));
 	//m_pia->irqb_handler().set(FUNC(ss50_mpc_device::pia_irq_w));
 
-	MCFG_DEVICE_ADD("rs232", RS232_PORT, default_rs232_devices, "terminal")
-	MCFG_RS232_RXD_HANDLER(WRITELINE(*this, ss50_mpc_device, serial_input_w))
-	MCFG_SLOT_OPTION_DEVICE_INPUT_DEFAULTS("terminal", terminal)
+	rs232_port_device &rs232(RS232_PORT(config, "rs232", default_rs232_devices, "terminal"));
+	rs232.rxd_handler().set(FUNC(ss50_mpc_device::serial_input_w));
+	rs232.set_option_device_input_defaults("terminal", DEVICE_INPUT_DEFAULTS_NAME(terminal));
 
-	MCFG_INPUT_MERGER_ALL_HIGH("outgate")
-	MCFG_INPUT_MERGER_OUTPUT_HANDLER(WRITELINE("rs232", rs232_port_device, write_txd))
+	INPUT_MERGER_ALL_HIGH(config, "outgate").output_handler().set("rs232", FUNC(rs232_port_device::write_txd));
 
-	MCFG_INPUT_MERGER_ANY_HIGH("loopback")
-	MCFG_INPUT_MERGER_OUTPUT_HANDLER(WRITELINE("outgate", input_merger_device, in_w<1>))
+	INPUT_MERGER_ANY_HIGH(config, m_loopback).output_handler().set("outgate", FUNC(input_merger_device::in_w<1>));
 
 	RIPPLE_COUNTER(config, m_counter); // CD4024AE (IC3)
 	m_counter->set_stages(7); // only Q5 (÷32) and Q4 (÷16) are actually used
-MACHINE_CONFIG_END
+}
 
 
 //-------------------------------------------------

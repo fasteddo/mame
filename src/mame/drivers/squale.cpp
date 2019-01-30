@@ -59,6 +59,7 @@
 #include "bus/generic/carts.h"
 #include "bus/generic/slot.h"
 #include "cpu/m6809/m6809.h"
+#include "imagedev/floppy.h"
 #include "machine/6821pia.h"
 #include "machine/6850acia.h"
 #include "machine/timer.h"
@@ -804,13 +805,13 @@ MACHINE_CONFIG_START(squale_state::squale)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("ay8910", AY8910, AY_CLOCK)
+	AY8910(config, m_ay8910, AY_CLOCK);
 	// TODO : Add port I/O handler
-	MCFG_AY8910_PORT_A_READ_CB(READ8(*this, squale_state, ay_porta_r))
-	MCFG_AY8910_PORT_B_READ_CB(READ8(*this, squale_state, ay_portb_r))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(*this, squale_state, ay_porta_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(*this, squale_state, ay_portb_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	m_ay8910->port_a_read_callback().set(FUNC(squale_state::ay_porta_r));
+	m_ay8910->port_b_read_callback().set(FUNC(squale_state::ay_portb_r));
+	m_ay8910->port_a_write_callback().set(FUNC(squale_state::ay_porta_w));
+	m_ay8910->port_b_write_callback().set(FUNC(squale_state::ay_portb_w));
+	m_ay8910->add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	MCFG_DEVICE_ADD ("ef6850", ACIA6850, 0)
 
@@ -823,14 +824,14 @@ MACHINE_CONFIG_START(squale_state::squale)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 256-1)
 	MCFG_PALETTE_ADD("palette", 16)
 
-	MCFG_DEVICE_ADD("ef9365", EF9365, VIDEO_CLOCK)
-	MCFG_EF936X_PALETTE("palette")
-	MCFG_EF936X_BITPLANES_CNT(4);
-	MCFG_EF936X_DISPLAYMODE(DISPLAY_MODE_256x256);
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("squale_sl", squale_state, squale_scanline, "screen", 0, 10)
+	EF9365(config, m_ef9365, VIDEO_CLOCK);
+	m_ef9365->set_palette_tag("palette");
+	m_ef9365->set_nb_bitplanes(4);
+	m_ef9365->set_display_mode(ef9365_device::DISPLAY_MODE_256x256);
+	TIMER(config, "squale_sl").configure_scanline(FUNC(squale_state::squale_scanline), "screen", 0, 10);
 
 	/* Floppy */
-	MCFG_DEVICE_ADD("wd1770", WD1770, 8_MHz_XTAL)
+	WD1770(config, m_fdc, 8_MHz_XTAL);
 	MCFG_FLOPPY_DRIVE_ADD("wd1770:0", squale_floppies, "525qd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("wd1770:1", squale_floppies, "525qd", floppy_image_device::default_floppy_formats)
 	MCFG_SOFTWARE_LIST_ADD("flop525_list", "squale")

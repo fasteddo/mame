@@ -40,6 +40,7 @@
 
 #include "emu.h"
 #include "includes/canyon.h"
+
 #include "cpu/m6502/m6502.h"
 #include "sound/discrete.h"
 #include "screen.h"
@@ -52,12 +53,12 @@
  *
  *************************************/
 
-PALETTE_INIT_MEMBER(canyon_state, canyon)
+void canyon_state::canyon_palette(palette_device &palette) const
 {
-	palette.set_pen_color(0, rgb_t(0x80, 0x80, 0x80)); /* GREY  */
-	palette.set_pen_color(1, rgb_t(0x00, 0x00, 0x00)); /* BLACK */
-	palette.set_pen_color(2, rgb_t(0x80, 0x80, 0x80)); /* GREY  */
-	palette.set_pen_color(3, rgb_t(0xff, 0xff, 0xff)); /* WHITE */
+	palette.set_pen_color(0, rgb_t(0x80, 0x80, 0x80)); // GREY
+	palette.set_pen_color(1, rgb_t(0x00, 0x00, 0x00)); // BLACK
+	palette.set_pen_color(2, rgb_t(0x80, 0x80, 0x80)); // GREY
+	palette.set_pen_color(3, rgb_t(0xff, 0xff, 0xff)); // WHITE
 }
 
 
@@ -252,19 +253,17 @@ MACHINE_CONFIG_START(canyon_state::canyon)
 	m_outlatch->q_out_cb<4>().set("discrete", FUNC(discrete_device::write_line<CANYON_ATTRACT1_EN>));
 	m_outlatch->q_out_cb<5>().set("discrete", FUNC(discrete_device::write_line<CANYON_ATTRACT2_EN>));
 
-	MCFG_WATCHDOG_ADD("watchdog")
-	MCFG_WATCHDOG_VBLANK_INIT("screen", 8)
+	WATCHDOG_TIMER(config, m_watchdog).set_vblank_count("screen", 8);
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(12.096_MHz_XTAL / 2, 384, 0, 256, 262, 0, 240) // HSYNC = 15,750 Hz
 	MCFG_SCREEN_UPDATE_DRIVER(canyon_state, screen_update_canyon)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(INPUTLINE("maincpu", m6502_device::NMI_LINE))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_canyon)
-	MCFG_PALETTE_ADD("palette", 4)
-	MCFG_PALETTE_INIT_OWNER(canyon_state, canyon)
+	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, m_palette, gfx_canyon)
+	PALETTE(config, m_palette, FUNC(canyon_state::canyon_palette), 4);
 
 	/* sound hardware */
 	SPEAKER(config, "lspeaker").front_left();

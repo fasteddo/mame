@@ -593,62 +593,59 @@ void snk68_state::tile_callback_notpow(int &tile, int& fx, int& fy, int& region)
 	region = 1;
 }
 
-MACHINE_CONFIG_START(snk68_state::pow)
-
+void snk68_state::pow(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", M68000, XTAL(18'000'000)/2) /* verified on pcb */
-	MCFG_DEVICE_PROGRAM_MAP(pow_map)
-	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", snk68_state,  irq1_line_hold)
+	M68000(config, m_maincpu, XTAL(18'000'000)/2); /* verified on pcb */
+	m_maincpu->set_addrmap(AS_PROGRAM, &snk68_state::pow_map);
+	m_maincpu->set_vblank_int("screen", FUNC(snk68_state::irq1_line_hold));
 
-	MCFG_DEVICE_ADD("soundcpu", Z80, XTAL(8'000'000)/2) /* verified on pcb */
-	MCFG_DEVICE_PROGRAM_MAP(sound_map)
-	MCFG_DEVICE_IO_MAP(sound_io_map)
+	Z80(config, m_soundcpu, XTAL(8'000'000)/2); /* verified on pcb */
+	m_soundcpu->set_addrmap(AS_PROGRAM, &snk68_state::sound_map);
+	m_soundcpu->set_addrmap(AS_IO, &snk68_state::sound_io_map);
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
 	// the screen parameters are guessed but should be accurate. They
 	// give a theoretical refresh rate of 59.1856Hz while the measured
 	// rate on a SAR board is 59.16Hz.
-	MCFG_SCREEN_RAW_PARAMS(XTAL(24'000'000)/4, 384, 0, 256, 264, 16, 240)
-	MCFG_SCREEN_UPDATE_DRIVER(snk68_state, screen_update)
-	MCFG_SCREEN_PALETTE("palette")
+	m_screen->set_raw(XTAL(24'000'000)/4, 384, 0, 256, 264, 16, 240);
+	m_screen->set_screen_update(FUNC(snk68_state::screen_update));
+	m_screen->set_palette("palette");
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_pow)
-	MCFG_PALETTE_ADD("palette", 0x800)
-	MCFG_PALETTE_FORMAT(xRGBRRRRGGGGBBBB_bit0)
+	GFXDECODE(config, m_gfxdecode, "palette", gfx_pow);
+	PALETTE(config, "palette").set_format(2, &raw_to_rgb_converter::xRGBRRRRGGGGBBBB_bit0_decoder, 0x800);
 
-	MCFG_DEVICE_ADD("sprites", SNK68_SPR, 0)
-	MCFG_SNK68_SPR_GFXDECODE("gfxdecode")
-	MCFG_SNK68_SPR_SET_TILE_INDIRECT( snk68_state, tile_callback_pow )
+	SNK68_SPR(config, m_sprites, 0);
+	m_sprites->set_gfxdecode_tag(m_gfxdecode);
+	m_sprites->set_tile_indirect_cb(FUNC(snk68_state::tile_callback_pow), this);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
+	GENERIC_LATCH_8(config, m_soundlatch);
+	GENERIC_LATCH_8(config, "soundlatch2");
 
-	MCFG_DEVICE_ADD("ymsnd", YM3812, XTAL(8'000'000)/2) /* verified on pcb  */
-	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("soundcpu", 0))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	ym3812_device &ymsnd(YM3812(config, "ymsnd", XTAL(8'000'000)/2)); /* verified on pcb  */
+	ymsnd.irq_handler().set_inputline(m_soundcpu, 0);
+	ymsnd.add_route(ALL_OUTPUTS, "mono", 1.0);
 
-	MCFG_DEVICE_ADD("upd", UPD7759)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	UPD7759(config, m_upd7759);
+	m_upd7759->add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
-MACHINE_CONFIG_START(snk68_state::streetsm)
+void snk68_state::streetsm(machine_config &config)
+{
 	pow(config);
-	MCFG_DEVICE_MODIFY("sprites")
-	MCFG_SNK68_SPR_SET_TILE_INDIRECT( snk68_state, tile_callback_notpow )
-MACHINE_CONFIG_END
+	m_sprites->set_tile_indirect_cb(FUNC(snk68_state::tile_callback_notpow), this);
+}
 
-MACHINE_CONFIG_START(snk68_state::searchar)
+void snk68_state::searchar(machine_config &config)
+{
 	streetsm(config);
-
-	MCFG_DEVICE_MODIFY("maincpu")
-	MCFG_DEVICE_PROGRAM_MAP(searchar_map)
-
+	m_maincpu->set_addrmap(AS_PROGRAM, &snk68_state::searchar_map);
 	MCFG_VIDEO_START_OVERRIDE(snk68_state,searchar)
-MACHINE_CONFIG_END
+}
 
 
 /******************************************************************************/
@@ -914,6 +911,12 @@ ROM_START( ikari3w ) /* Initial boot shows Ikari III The Rescue, then the title 
 	ROM_REGION16_BE( 0x40000, "user1", 0 ) /* Extra code bank */
 	ROM_LOAD16_BYTE( "ik3-1.c8",   0x000000, 0x10000, CRC(47e4d256) SHA1(7c6921cf2f1b8c3dae867eb1fc14e3da218cc1e0) )
 	ROM_LOAD16_BYTE( "ik3-4.c12",  0x000001, 0x10000, CRC(a43af6b5) SHA1(1ad3acadbadd21642932028ecd7c282f7fd02856) )
+
+	/* stuff below isn't used but loaded because it was on the board .. */
+	ROM_REGION( 0x0600, "plds", 0 )
+	ROM_LOAD( "a_pal20l10a.ic1", 0x0000, 0x00cc, CRC(1cadf26d) SHA1(348a9e4727df0a15247c7b9c5cd5ee935edd9752) )
+	ROM_LOAD( "b_pal20l10a.ic3", 0x0200, 0x00cc, CRC(c3d9e729) SHA1(f05f03eecf12b4d0793124ecd3195307be04046b) )
+	ROM_LOAD( "c_pal16l8a.ic2",  0x0400, 0x0104, CRC(e258b8d6) SHA1(9d000aa9a09b402208a5c2d98789cc62e23a2eb2) )
 ROM_END
 
 ROM_START( ikari3u )

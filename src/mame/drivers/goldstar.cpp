@@ -217,7 +217,6 @@
 
 #include "cpu/z80/z80.h"
 #include "cpu/mcs51/mcs51.h"
-#include "machine/i8255.h"
 #include "machine/nvram.h"
 #include "sound/ay8910.h"
 #include "sound/okim6295.h"
@@ -800,8 +799,8 @@ WRITE8_MEMBER(goldstar_state::cm_coincount_w)
 	machine().bookkeeping().coin_counter_w(3, data & 0x08);  /* Counter 4 Coin D */
 	machine().bookkeeping().coin_counter_w(4, data & 0x01);  /* Counter 5 Payout */
 
-	if (data & 0x86)
-		popmessage("counters: %02X", data);
+//  if (data & 0x86) // triggered by fb2010
+//      popmessage("counters: %02X", data);
 }
 
 void cmaster_state::cm_portmap(address_map &map)
@@ -5029,6 +5028,161 @@ static INPUT_PORTS_START( nfb96tx )
 	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( fb2010 ) // hit 'start1' to init NVRAM for first time
+	PORT_START("IN0")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* unused coin switch */
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SLOT_STOP_ALL ) PORT_NAME("Stop All / Big")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SLOT_STOP1 ) PORT_NAME("Stop 1 / D-UP")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SLOT_STOP3 ) PORT_NAME("Stop 3 / Take / Select Card")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_GAMBLE_BET ) PORT_NAME("Play (Bet)")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SLOT_STOP2 ) PORT_NAME("Stop 2 / Small / Info")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 ) PORT_NAME("Start")
+	PORT_START("IN1")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_IMPULSE(2) PORT_NAME("Ticket In")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* unused keyin? - causes counter errors */
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_IMPULSE(2)
+	PORT_START("IN2")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* unused coin switch */
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* unused keyout? */
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_SERVICE ) PORT_NAME("Settings")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_GAMBLE_BOOK ) PORT_NAME("Stats")
+	PORT_START("DSW1")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW1:1")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW1:2")
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW1:3")
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW1:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW1:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW1:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW1:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW1:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_START("DSW2")
+	PORT_DIPNAME( 0x01, 0x01, "Double Up" ) PORT_DIPLOCATION("DSW2:1")
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, "Skill Spin" ) PORT_DIPLOCATION("DSW2:2")
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW2:3")
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW2:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW2:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW2:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW2:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW2:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_START("DSW3")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW3:1")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW3:2")
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW3:3")
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW3:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW3:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW3:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW3:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW3:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_START("DSW4")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:1")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:2")
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:3")
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_START("DSW5")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW5:1")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW5:2")
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW5:3")
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, "Show Odds / Title" ) PORT_DIPLOCATION("DSW5:4")
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW5:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW5:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW5:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "Show 'Game' Text" ) PORT_DIPLOCATION("DSW5:8") // causes corruption in D-Up game?
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( roypok96 )
 	PORT_START("IN0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -8303,22 +8457,21 @@ MACHINE_CONFIG_START(goldstar_state::goldstar)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_goldstar)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_FORMAT(BBGGGRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_goldstar);
+	PALETTE(config, m_palette).set_format(palette_device::BGR_233, 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW3"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW3");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	MCFG_DEVICE_ADD("oki", OKIM6295, OKI_CLOCK, okim6295_device::PIN7_HIGH) /* clock frequency & pin 7 not verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -8340,36 +8493,37 @@ MACHINE_CONFIG_START(goldstar_state::goldstbl)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_bl)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_FORMAT(BBGGGRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_bl);
+	PALETTE(config, m_palette).set_format(palette_device::BGR_233, 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW3"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW3");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	MCFG_DEVICE_ADD("oki", OKIM6295, OKI_CLOCK, okim6295_device::PIN7_HIGH) /* clock frequency & pin 7 not verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
-MACHINE_CONFIG_START(goldstar_state::moonlght)
+void goldstar_state::moonlght(machine_config &config)
+{
 	goldstbl(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_ml)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_ml);
+}
 
-MACHINE_CONFIG_START(goldstar_state::goldfrui)
+void goldstar_state::goldfrui(machine_config &config)
+{
 	goldstbl(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_goldfrui)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_goldfrui);
+}
 
 
 MACHINE_CONFIG_START(sanghopm_state::star100)
@@ -8386,13 +8540,13 @@ MACHINE_CONFIG_START(sanghopm_state::star100)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sanghopm_state, screen_update_sangho)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_PALETTE_ADD("palette", 0x100)
-	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
+	PALETTE(config, m_palette).set_entries(0x100);
+	RAMDAC(config, "ramdac", 0, "palette").set_addrmap(0, &sanghopm_state::ramdac_map);
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_sangho)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_sangho);
 
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
@@ -8400,10 +8554,10 @@ MACHINE_CONFIG_START(sanghopm_state::star100)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW5"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW6"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW5");
+	aysnd.port_b_read_callback().set_ioport("DSW6");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	MCFG_DEVICE_ADD("oki", OKIM6295, OKI_CLOCK, okim6295_device::PIN7_HIGH) /* clock frequency & pin 7 not verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -8427,83 +8581,67 @@ MACHINE_CONFIG_START(goldstar_state::super9)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_super9)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_FORMAT(BBGGGRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_super9);
+	PALETTE(config, m_palette).set_format(palette_device::BGR_233, 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW3"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW3");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	MCFG_DEVICE_ADD("oki", OKIM6295, OKI_CLOCK, okim6295_device::PIN7_HIGH) /* clock frequency & pin 7 not verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
 
-PALETTE_INIT_MEMBER(goldstar_state, cm)
+void goldstar_state::cm_palette(palette_device &palette) const
 {
-	/* BBGGGRRR */
-
-	int i;
-
-	for (i = 0; i < 0x100; i++)
+	// BBGGGRRR
+	uint8_t const *const proms = memregion("proms")->base();
+	for (int i = 0; i < 0x100; i++)
 	{
-		uint8_t data;
-		uint8_t*proms = memregion("proms")->base();
-
-		data = proms[0x000 + i] | (proms[0x100 + i] << 4);
-
+		uint8_t const data = proms[0x000 + i] | (proms[0x100 + i] << 4);
 		palette.set_pen_color(i, pal3bit(data >> 0), pal3bit(data >> 3), pal2bit(data >> 6));
 	}
 }
 
-PALETTE_INIT_MEMBER(goldstar_state, cmast91)
+void goldstar_state::cmast91_palette(palette_device &palette) const
 {
-	int i;
-	for (i = 0; i < 0x100; i++)
+	uint8_t const *const proms = memregion("proms")->base();
+	for (int i = 0; i < 0x100; i++)
 	{
-		int r,g,b;
-
-		uint8_t*proms = memregion("proms")->base();
-
-		b = proms[0x000 + i] << 4;
-		g = proms[0x100 + i] << 4;
-		r = proms[0x200 + i] << 4;
+		int const b = pal4bit(proms[0x000 + i]);
+		int const g = pal4bit(proms[0x100 + i]);
+		int const r = pal4bit(proms[0x200 + i]);
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
-PALETTE_INIT_MEMBER(goldstar_state, lucky8)
+void goldstar_state::lucky8_palette(palette_device &palette) const
 {
-	/* BBGGGRRR */
-
-	int i;
-	uint8_t data;
-	uint8_t *proms;
+	// BBGGGRRR
+	uint8_t const *proms;
 
 	proms = memregion("proms")->base();
-	for (i = 0; i < 0x100; i++)
+	for (int i = 0; i < 0x100; i++)
 	{
-		data = proms[0x000 + i] | (proms[0x100 + i] << 4);
-
+		uint8_t const data = proms[0x000 + i] | (proms[0x100 + i] << 4);
 		palette.set_pen_color(i, pal3bit(data >> 0), pal3bit(data >> 3), pal2bit(data >> 6));
 	}
 
 	proms = memregion("proms2")->base();
-	for (i=0; i < 0x20; i++)
+	for (int i = 0; i < 0x20; i++)
 	{
-		data = proms[i];
-
+		uint8_t const data = proms[i];
 		palette.set_pen_color(i + 0x80, pal3bit(data >> 0), pal3bit(data >> 3), pal2bit(data >> 6));
 	}
 }
@@ -8516,17 +8654,17 @@ MACHINE_CONFIG_START(cb3_state::ncb3)
 	MCFG_DEVICE_PROGRAM_MAP(ncb3_map)
 	MCFG_DEVICE_IO_MAP(ncb3_readwriteport)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN3"))   //Player2 controls, confirmed
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN3");   //Player2 controls, confirmed
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN2"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("IN1");
+	m_ppi[1]->in_pb_callback().set_ioport("IN2");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW1");
 
-	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW2"))
+	I8255A(config, m_ppi[2]);
+	m_ppi[2]->in_pa_callback().set_ioport("DSW2");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8535,12 +8673,11 @@ MACHINE_CONFIG_START(cb3_state::ncb3)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ncb3)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, cm)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ncb3);
+	PALETTE(config, m_palette, FUNC(goldstar_state::cm_palette), 256);
 
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
@@ -8552,36 +8689,41 @@ MACHINE_CONFIG_START(cb3_state::ncb3)
 	MCFG_DEVICE_ADD("snsnd", SN76489, PSG_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW3"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW3");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 MACHINE_CONFIG_END
 
-MACHINE_CONFIG_START(cb3_state::cb3c)
+void cb3_state::cb3c(machine_config &config)
+{
 	ncb3(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_cb3c)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_cb3c);
+}
 
-MACHINE_CONFIG_START(cb3_state::cb3e)
+void cb3_state::cb3e(machine_config &config)
+{
 	ncb3(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_cb3e)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_cb3e);
+}
 
-MACHINE_CONFIG_START(cb3_state::chrygld)
+void cb3_state::chrygld(machine_config &config)
+{
 	ncb3(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_chry10)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_chry10);
+}
 
-MACHINE_CONFIG_START(cb3_state::cherrys)
+void cb3_state::cherrys(machine_config &config)
+{
 	ncb3(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_cherrys)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_cherrys);
+}
 
-MACHINE_CONFIG_START(cb3_state::cm97)
+void cb3_state::cm97(machine_config &config)
+{
 	ncb3(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_cm97)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_cm97);
+}
 
 
 MACHINE_CONFIG_START(goldstar_state::wcherry)
@@ -8591,17 +8733,17 @@ MACHINE_CONFIG_START(goldstar_state::wcherry)
 	MCFG_DEVICE_PROGRAM_MAP(wcherry_map)
 	MCFG_DEVICE_IO_MAP(wcherry_readwriteport)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN3"))   //Player2 controls, confirmed
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN3");   //Player2 controls, confirmed
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN2"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("IN1");
+	m_ppi[1]->in_pb_callback().set_ioport("IN2");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW1");
 
-	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW2"))
+	I8255A(config, m_ppi[2]);
+	m_ppi[2]->in_pa_callback().set_ioport("DSW2");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8610,12 +8752,11 @@ MACHINE_CONFIG_START(goldstar_state::wcherry)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_cb3e)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, cm)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_cb3e);
+	PALETTE(config, m_palette, FUNC(goldstar_state::cm_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
@@ -8626,10 +8767,10 @@ MACHINE_CONFIG_START(goldstar_state::wcherry)
 	MCFG_DEVICE_ADD("snsnd", SN76489, PSG_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW3"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW3");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 MACHINE_CONFIG_END
 
 
@@ -8640,15 +8781,15 @@ MACHINE_CONFIG_START(cmaster_state::cm)
 	MCFG_DEVICE_PROGRAM_MAP(cm_map)
 	MCFG_DEVICE_IO_MAP(cm_portmap)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("DSW1");
+	m_ppi[1]->in_pb_callback().set_ioport("DSW2");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW3");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8657,28 +8798,28 @@ MACHINE_CONFIG_START(cmaster_state::cm)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_cmbitmap)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state,cm)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_cmbitmap);
+	PALETTE(config, m_palette, FUNC(goldstar_state::cm_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, cherrym)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW5"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW5");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 MACHINE_CONFIG_END
 
-MACHINE_CONFIG_START(cmaster_state::cmasterc)
+void cmaster_state::cmasterc(machine_config &config)
+{
 	cm(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_cmasterc)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_cmasterc);
+}
 
 
 MACHINE_CONFIG_START(goldstar_state::cmast91)
@@ -8688,15 +8829,15 @@ MACHINE_CONFIG_START(goldstar_state::cmast91)
 	MCFG_DEVICE_PROGRAM_MAP(cm_map)
 	MCFG_DEVICE_IO_MAP(cmast91_portmap)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("DSW1");
+	m_ppi[1]->in_pb_callback().set_ioport("DSW2");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW3");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8705,22 +8846,21 @@ MACHINE_CONFIG_START(goldstar_state::cmast91)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_cmast91)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_cmast91)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, cmast91)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_cmast91);
+	PALETTE(config, m_palette, FUNC(goldstar_state::cmast91_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, cherrym)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW5"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW5");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 MACHINE_CONFIG_END
 
 
@@ -8738,21 +8878,21 @@ MACHINE_CONFIG_START(wingco_state::lucky8)
 	MCFG_DEVICE_PROGRAM_MAP(lucky8_map)
 	//MCFG_DEVICE_IO_MAP(goldstar_readport)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN3"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN4"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("IN3");
+	m_ppi[1]->in_pb_callback().set_ioport("IN4");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW1");
 
-	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW2"))
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(*this, wingco_state, system_outputa_w))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(*this, wingco_state, system_outputb_w))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(*this, wingco_state, system_outputc_w))
+	I8255A(config, m_ppi[2]);
+	m_ppi[2]->in_pa_callback().set_ioport("DSW2");
+	m_ppi[2]->out_pa_callback().set(FUNC(wingco_state::system_outputa_w));
+	m_ppi[2]->out_pb_callback().set(FUNC(wingco_state::system_outputb_w));
+	m_ppi[2]->out_pc_callback().set(FUNC(wingco_state::system_outputc_w));
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8761,13 +8901,11 @@ MACHINE_CONFIG_START(wingco_state::lucky8)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, wingco_state, masked_irq))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ncb3)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_FORMAT(BBGGGRRR)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ncb3);
+	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette)).set_format(palette_device::BGR_233, 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
@@ -8778,12 +8916,12 @@ MACHINE_CONFIG_START(wingco_state::lucky8)
 	MCFG_DEVICE_ADD("snsnd", SN76489, PSG_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_DEVICE_ADD("aysnd", YM2149, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW3"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputa_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputb_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ym2149_device &aysnd(YM2149(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW3");
+	aysnd.port_b_read_callback().set_ioport("DSW4");
+	aysnd.port_a_write_callback().set(FUNC(goldstar_state::ay8910_outputa_w));
+	aysnd.port_b_write_callback().set(FUNC(goldstar_state::ay8910_outputb_w));
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(wingco_state::bingowng)
@@ -8793,21 +8931,21 @@ MACHINE_CONFIG_START(wingco_state::bingowng)
 	MCFG_DEVICE_PROGRAM_MAP(lucky8_map)
 	//MCFG_DEVICE_IO_MAP(goldstar_readport)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN3"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN4"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("IN3");
+	m_ppi[1]->in_pb_callback().set_ioport("IN4");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW1");
 
-	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW2"))
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(*this, wingco_state, system_outputa_w))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(*this, wingco_state, system_outputb_w))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(*this, wingco_state, system_outputc_w))
+	I8255A(config, m_ppi[2]);
+	m_ppi[2]->in_pa_callback().set_ioport("DSW2");
+	m_ppi[2]->out_pa_callback().set(FUNC(wingco_state::system_outputa_w));
+	m_ppi[2]->out_pb_callback().set(FUNC(wingco_state::system_outputb_w));
+	m_ppi[2]->out_pc_callback().set(FUNC(wingco_state::system_outputc_w));
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8816,12 +8954,11 @@ MACHINE_CONFIG_START(wingco_state::bingowng)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wingco_state, screen_update_bingowng)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, wingco_state, masked_irq))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ncb3)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ncb3);
+	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(wingco_state, bingowng)
@@ -8832,18 +8969,19 @@ MACHINE_CONFIG_START(wingco_state::bingowng)
 	MCFG_DEVICE_ADD("snsnd", SN76489, PSG_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW3"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputa_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputb_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW3");
+	aysnd.port_b_read_callback().set_ioport("DSW4");
+	aysnd.port_a_write_callback().set(FUNC(goldstar_state::ay8910_outputa_w));
+	aysnd.port_b_write_callback().set(FUNC(goldstar_state::ay8910_outputb_w));
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 MACHINE_CONFIG_END
 
-MACHINE_CONFIG_START(wingco_state::bingownga)
+void wingco_state::bingownga(machine_config &config)
+{
 	bingowng(config);
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_bingownga)
-MACHINE_CONFIG_END
+	m_gfxdecode->set_info(gfx_bingownga);
+}
 
 
 MACHINE_CONFIG_START(wingco_state::flam7_w4)
@@ -8852,8 +8990,7 @@ MACHINE_CONFIG_START(wingco_state::flam7_w4)
 	MCFG_DEVICE_MODIFY("maincpu")
 	MCFG_DEVICE_PROGRAM_MAP(flaming7_map)
 
-	MCFG_DEVICE_MODIFY("ppi8255_0")
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(*this, wingco_state, fl7w4_outc802_w))
+	m_ppi[0]->out_pc_callback().set(FUNC(wingco_state::fl7w4_outc802_w));
 
 	MCFG_DEVICE_ADD(m_fl7w4_id, DS2401)
 MACHINE_CONFIG_END
@@ -8864,11 +9001,10 @@ MACHINE_CONFIG_START(wingco_state::flaming7)
 	MCFG_DEVICE_MODIFY("maincpu")
 	MCFG_DEVICE_PROGRAM_MAP(flaming7_map)
 
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_flaming7)
+	m_gfxdecode->set_info(gfx_flaming7);
 
 	// to do serial protection.
-	MCFG_DEVICE_MODIFY("ppi8255_0")
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(*this, wingco_state, fl7w4_outc802_w))
+	m_ppi[0]->out_pc_callback().set(FUNC(wingco_state::fl7w4_outc802_w));
 
 	MCFG_DEVICE_ADD(m_fl7w4_id, DS2401)
 MACHINE_CONFIG_END
@@ -8879,11 +9015,10 @@ MACHINE_CONFIG_START(wingco_state::flam7_tw)
 	MCFG_DEVICE_MODIFY("maincpu")
 	MCFG_DEVICE_PROGRAM_MAP(flaming7_map)
 
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_flam7_tw)
+	m_gfxdecode->set_info(gfx_flam7_tw);
 
 	// to do serial protection.
-	MCFG_DEVICE_MODIFY("ppi8255_0")
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(*this, wingco_state, fl7w4_outc802_w))
+	m_ppi[0]->out_pc_callback().set(FUNC(wingco_state::fl7w4_outc802_w));
 
 	MCFG_DEVICE_ADD(m_fl7w4_id, DS2401)
 MACHINE_CONFIG_END
@@ -8900,14 +9035,14 @@ MACHINE_CONFIG_END
 
 
 
-PALETTE_INIT_MEMBER(wingco_state, magodds)
+void wingco_state::magodds_palette(palette_device &palette) const
 {
+	uint8_t const *const proms = memregion("proms")->base();
 	for (int i = 0; i < 0x100; i++)
 	{
-		uint8_t *proms = memregion("proms")->base();
-		uint8_t b = proms[0x000 + i] << 4;
-		uint8_t g = proms[0x100 + i] << 4;
-		uint8_t r = proms[0x200 + i] << 4;
+		uint8_t const b = pal4bit(proms[0x000 + i]);
+		uint8_t const g = pal4bit(proms[0x100 + i]);
+		uint8_t const r = pal4bit(proms[0x200 + i]);
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
@@ -8920,21 +9055,21 @@ MACHINE_CONFIG_START(wingco_state::magodds)
 	MCFG_DEVICE_PROGRAM_MAP(magodds_map)
 	//MCFG_DEVICE_IO_MAP(goldstar_readport)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN3"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN4"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("IN3");
+	m_ppi[1]->in_pb_callback().set_ioport("IN4");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW1");
 
-	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW2"))
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(*this, wingco_state, system_outputa_w))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(*this, wingco_state, system_outputb_w))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(*this, wingco_state, system_outputc_w))
+	I8255A(config, m_ppi[2]);
+	m_ppi[2]->in_pa_callback().set_ioport("DSW2");
+	m_ppi[2]->out_pa_callback().set(FUNC(wingco_state::system_outputa_w));
+	m_ppi[2]->out_pb_callback().set(FUNC(wingco_state::system_outputb_w));
+	m_ppi[2]->out_pc_callback().set(FUNC(wingco_state::system_outputc_w));
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8943,12 +9078,11 @@ MACHINE_CONFIG_START(wingco_state::magodds)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wingco_state, screen_update_magical)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, wingco_state, masked_irq))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_magodds)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(wingco_state, magodds)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_magodds);
+	PALETTE(config, m_palette, FUNC(wingco_state::magodds_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(wingco_state, magical)
@@ -8959,12 +9093,12 @@ MACHINE_CONFIG_START(wingco_state::magodds)
 	MCFG_DEVICE_ADD("snsnd", SN76489, PSG_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.00)  // shut up annoying whine
 
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW3"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputa_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputb_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW3");
+	aysnd.port_b_read_callback().set_ioport("DSW4");
+	aysnd.port_a_write_callback().set(FUNC(goldstar_state::ay8910_outputa_w));
+	aysnd.port_b_write_callback().set(FUNC(goldstar_state::ay8910_outputb_w));
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.80);
 MACHINE_CONFIG_END
 
 
@@ -8975,17 +9109,17 @@ MACHINE_CONFIG_START(goldstar_state::kkotnoli)
 	MCFG_DEVICE_PROGRAM_MAP(kkotnoli_map)
 	//MCFG_DEVICE_IO_MAP(goldstar_readport)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN3"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN4"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("IN3");
+	m_ppi[1]->in_pb_callback().set_ioport("IN4");
 
-	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[2]);
+	m_ppi[2]->in_pa_callback().set_ioport("DSW1");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8994,12 +9128,11 @@ MACHINE_CONFIG_START(goldstar_state::kkotnoli)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_NMI))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ncb3)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ncb3);
+	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette), 256);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
@@ -9019,13 +9152,13 @@ MACHINE_CONFIG_START(goldstar_state::ladylinr)
 	MCFG_DEVICE_PROGRAM_MAP(ladylinr_map)
 	//MCFG_DEVICE_IO_MAP(goldstar_readport)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("DSW1");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9034,12 +9167,11 @@ MACHINE_CONFIG_START(goldstar_state::ladylinr)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_NMI))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ncb3)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ncb3);
+	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
@@ -9050,8 +9182,7 @@ MACHINE_CONFIG_START(goldstar_state::ladylinr)
 	MCFG_DEVICE_ADD("snsnd", SN76489, PSG_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK) // unused?
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	AY8930(config, "aysnd", AY_CLOCK).add_route(ALL_OUTPUTS, "mono", 0.50); // unused?
 MACHINE_CONFIG_END
 
 
@@ -9062,21 +9193,21 @@ MACHINE_CONFIG_START(wingco_state::wcat3)
 	MCFG_DEVICE_PROGRAM_MAP(wcat3_map)
 	//MCFG_DEVICE_IO_MAP(goldstar_readport)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN3"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN4"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("IN3");
+	m_ppi[1]->in_pb_callback().set_ioport("IN4");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW1");
 
-	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW2"))
-	MCFG_I8255_OUT_PORTA_CB(WRITE8(*this, wingco_state, system_outputa_w))
-	MCFG_I8255_OUT_PORTB_CB(WRITE8(*this, wingco_state, system_outputb_w))
-	MCFG_I8255_OUT_PORTC_CB(WRITE8(*this, wingco_state, system_outputc_w))
+	I8255A(config, m_ppi[2]);
+	m_ppi[2]->in_pa_callback().set_ioport("DSW2");
+	m_ppi[2]->out_pa_callback().set(FUNC(wingco_state::system_outputa_w));
+	m_ppi[2]->out_pb_callback().set(FUNC(wingco_state::system_outputb_w));
+	m_ppi[2]->out_pc_callback().set(FUNC(wingco_state::system_outputc_w));
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9085,12 +9216,11 @@ MACHINE_CONFIG_START(wingco_state::wcat3)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_NMI))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ncb3)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ncb3);
+	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
@@ -9101,12 +9231,12 @@ MACHINE_CONFIG_START(wingco_state::wcat3)
 	MCFG_DEVICE_ADD("snsnd", SN76489, PSG_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW3"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputa_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputb_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW3");
+	aysnd.port_b_read_callback().set_ioport("DSW4");
+	aysnd.port_a_write_callback().set(FUNC(goldstar_state::ay8910_outputa_w));
+	aysnd.port_b_write_callback().set(FUNC(goldstar_state::ay8910_outputb_w));
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 MACHINE_CONFIG_END
 
@@ -9119,15 +9249,15 @@ MACHINE_CONFIG_START(cmaster_state::amcoe1)
 	MCFG_DEVICE_PROGRAM_MAP(cm_map)
 	MCFG_DEVICE_IO_MAP(amcoe1_portmap)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("DSW1");
+	m_ppi[1]->in_pb_callback().set_ioport("DSW2");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW3");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9136,22 +9266,21 @@ MACHINE_CONFIG_START(cmaster_state::amcoe1)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_cm)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state,cm)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_cm);
+	PALETTE(config, m_palette, FUNC(goldstar_state::cm_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, cherrym)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW5"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW5");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	MCFG_DEVICE_ADD("oki", OKIM6295, OKI_CLOCK, okim6295_device::PIN7_HIGH) /* clock frequency & pin 7 not verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -9176,15 +9305,15 @@ MACHINE_CONFIG_START(cmaster_state::amcoe2)
 	MCFG_DEVICE_PROGRAM_MAP(cm_map)
 	MCFG_DEVICE_IO_MAP(amcoe2_portmap)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("DSW1");
+	m_ppi[1]->in_pb_callback().set_ioport("DSW2");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW3");
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9193,22 +9322,21 @@ MACHINE_CONFIG_START(cmaster_state::amcoe2)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_cm)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state,cm)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_cm);
+	PALETTE(config, m_palette, FUNC(goldstar_state::cm_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, cherrym)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW5"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.00) /* analyzed for clips */
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW5");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 2.00); /* analyzed for clips */
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_START(cmaster_state::nfm)
@@ -9218,7 +9346,7 @@ MACHINE_CONFIG_START(cmaster_state::nfm)
 	MCFG_DEVICE_MODIFY("maincpu")
 	MCFG_DEVICE_PROGRAM_MAP(nfm_map)
 
-	MCFG_GFXDECODE_MODIFY("gfxdecode", gfx_nfm)
+	m_gfxdecode->set_info(gfx_nfm);
 MACHINE_CONFIG_END
 
 
@@ -9244,24 +9372,23 @@ MACHINE_CONFIG_START(unkch_state::unkch)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(unkch_state, screen_update_unkch)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(WRITELINE(*this, unkch_state, vblank_irq))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_unkch)
-	MCFG_PALETTE_ADD("palette", 512)
-	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_unkch);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_555, 512);
 
 	MCFG_VIDEO_START_OVERRIDE(unkch_state, unkch)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW1");
+	aysnd.port_b_read_callback().set_ioport("DSW2");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	/* payout hardware */
-	MCFG_TICKET_DISPENSER_ADD("tickets", attotime::from_msec(200), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_LOW)
+	TICKET_DISPENSER(config, m_ticket_dispenser, attotime::from_msec(200), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_LOW);
 MACHINE_CONFIG_END
 
 
@@ -9281,22 +9408,21 @@ MACHINE_CONFIG_START(goldstar_state::pkrmast)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(HOLDLINE("maincpu", 0))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_pkrmast)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, cm)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_pkrmast);
+	PALETTE(config, m_palette, FUNC(goldstar_state::cm_palette), 256);
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, cherrym)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW5"))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW4");
+	aysnd.port_b_read_callback().set_ioport("DSW5");
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 MACHINE_CONFIG_END
 
 
@@ -9318,12 +9444,11 @@ MACHINE_CONFIG_START(unkch_state::megaline)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_NMI))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_megaline)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_megaline);
+	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette), 256);
 //  NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state,goldstar)
@@ -9340,12 +9465,12 @@ MACHINE_CONFIG_START(unkch_state::megaline)
 	MCFG_DEVICE_ADD("sn3", SN76489, PSG_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_DEVICE_ADD("aysnd", AY8910, AY_CLOCK)
-	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW3"))
-	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW4"))
-	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputa_w))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(*this, goldstar_state, ay8910_outputb_w))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
+	aysnd.port_a_read_callback().set_ioport("DSW3");
+	aysnd.port_b_read_callback().set_ioport("DSW4");
+	aysnd.port_a_write_callback().set(FUNC(goldstar_state::ay8910_outputa_w));
+	aysnd.port_b_write_callback().set(FUNC(goldstar_state::ay8910_outputb_w));
+	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 MACHINE_CONFIG_END
 
@@ -9366,12 +9491,11 @@ MACHINE_CONFIG_START(unkch_state::bonusch)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(goldstar_state, screen_update_goldstar)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_NMI))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_megaline)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_megaline);
+	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette), 256);
 
 	MCFG_VIDEO_START_OVERRIDE(goldstar_state, goldstar)
 
@@ -9398,32 +9522,31 @@ MACHINE_CONFIG_START(unkch_state::feverch)
 	MCFG_DEVICE_PROGRAM_MAP(feverch_map)
 	MCFG_DEVICE_IO_MAP(feverch_portmap)
 
-	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	I8255A(config, m_ppi[0]);
+	m_ppi[0]->in_pa_callback().set_ioport("IN0");
+	m_ppi[0]->in_pb_callback().set_ioport("IN1");
+	m_ppi[0]->in_pc_callback().set_ioport("IN2");
 
-	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("IN3"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("IN4"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW1"))
+	I8255A(config, m_ppi[1]);
+	m_ppi[1]->in_pa_callback().set_ioport("IN3");
+	m_ppi[1]->in_pb_callback().set_ioport("IN4");
+	m_ppi[1]->in_pc_callback().set_ioport("DSW1");
 
-	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
-	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW4"))
-	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
-	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
+	I8255A(config, m_ppi[2]);
+	m_ppi[2]->in_pa_callback().set_ioport("DSW4");
+	m_ppi[2]->in_pb_callback().set_ioport("DSW2");
+	m_ppi[2]->in_pc_callback().set_ioport("DSW3");
+
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(unkch_state, screen_update_unkch)
-	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_PALETTE(m_palette)
 	MCFG_SCREEN_VBLANK_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_NMI))
 
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ncb3)
-	MCFG_PALETTE_ADD("palette", 256)
-	MCFG_PALETTE_FORMAT(BBGGGRRR)
-	MCFG_PALETTE_INIT_OWNER(goldstar_state, lucky8)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ncb3);
+	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette)).set_format(palette_device::BGR_233, 256);
 
 	MCFG_VIDEO_START_OVERRIDE(unkch_state, unkch)
 
@@ -9633,27 +9756,27 @@ Note
 */
 ROM_START( chry10 )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "ver.1h2.u20",  0x0000, 0x10000, CRC(85bbde06) SHA1(f44d335feb4697b195e9fc7e5aeaabf099e21ed8) )
+	ROM_LOAD( "ver.1h2.u20",       0x0000, 0x10000, CRC(85bbde06) SHA1(f44d335feb4697b195e9fc7e5aeaabf099e21ed8) )
 
 	ROM_REGION( 0x10000, "pic", 0 )
-	ROM_LOAD( "pic16f84.bad.dump",    0x00000, 0x014f4, BAD_DUMP CRC(876ff1ed) SHA1(fcd6892e2b8371030af15e4d8c9f4a351ce0551c) )
+	ROM_LOAD( "pic16f84.bad.dump", 0x00000, 0x014f4, BAD_DUMP CRC(876ff1ed) SHA1(fcd6892e2b8371030af15e4d8c9f4a351ce0551c) )
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "27c010.u1",      0x00000, 0x20000, CRC(05515cf8) SHA1(366dd44ae93bdc4cf456f97f38edac83441cbc89) )
+	ROM_LOAD( "27c010.u1",         0x00000, 0x20000, CRC(05515cf8) SHA1(366dd44ae93bdc4cf456f97f38edac83441cbc89) )
 
 	ROM_REGION( 0x08000, "gfx2", 0 )
-	ROM_LOAD( "1.u3",      0x00000, 0x08000, CRC(32b46e5c) SHA1(49e59589188324e15ec2b8157839423faea9833f) )
+	ROM_LOAD( "1.u3",              0x00000, 0x08000, CRC(32b46e5c) SHA1(49e59589188324e15ec2b8157839423faea9833f) )
 
 	ROM_REGION( 0x0200, "proms", 0 )
-	ROM_LOAD( "82s147.u2",      0x00000, 0x0200, CRC(5c8f2b8f) SHA1(67d2121e75813dd85d83858c5fc5ec6ad9cc2a7d) )
+	ROM_LOAD( "82s147.u2",         0x00000, 0x0200, CRC(5c8f2b8f) SHA1(67d2121e75813dd85d83858c5fc5ec6ad9cc2a7d) )
 
 	ROM_REGION( 0x02e5, "palgal", 0 )
-	ROM_LOAD( "palce20v8h.pl1.bad.dump",    0x00000, 0x0157, BAD_DUMP CRC(f0c6d78c) SHA1(03ff589711179950209c405192bd41a032c6c6d6) )
-	ROM_LOAD( "palce20v8h.pl2.bad.dump",    0x00000, 0x0157, BAD_DUMP CRC(f0c6d78c) SHA1(03ff589711179950209c405192bd41a032c6c6d6) )
-	ROM_LOAD( "palce16v8h.pl4.bad.dump",    0x00000, 0x0117, BAD_DUMP CRC(c89d2f52) SHA1(f9d52d9c42ef95b7b85bbf6d09888ebdeac11fd3) )
-	ROM_LOAD( "gal22v10b.pl5.bad.dump",     0x00000, 0x02e5, BAD_DUMP CRC(996854bc) SHA1(647d2f49b739f7ca55c0b85290b6a21256834fd8) )
-	ROM_LOAD( "palce16v8h.pl6.bad.dump",    0x00000, 0x0117, BAD_DUMP CRC(7e3d99d8) SHA1(983e10eba11e4aeab5103ae644a8e6181d9b27a9) )
-	ROM_LOAD( "palce16v8h.pl7.bad.dump",    0x00000, 0x0117, BAD_DUMP CRC(c89d2f52) SHA1(f9d52d9c42ef95b7b85bbf6d09888ebdeac11fd3) )
+	ROM_LOAD( "palce20v8h.pl1",    0x00000, 0x0157, NO_DUMP )
+	ROM_LOAD( "palce20v8h.pl2",    0x00000, 0x0157, NO_DUMP )
+	ROM_LOAD( "palce16v8h.pl4",    0x00000, 0x0117, NO_DUMP )
+	ROM_LOAD( "gal22v10b.pl5",     0x00000, 0x02e5, NO_DUMP )
+	ROM_LOAD( "palce16v8h.pl6",    0x00000, 0x0117, NO_DUMP )
+	ROM_LOAD( "palce16v8h.pl7",    0x00000, 0x0117, NO_DUMP )
 ROM_END
 
 
@@ -9697,24 +9820,24 @@ Note
 */
 ROM_START( chrygld )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "ol-v9.u20",  0x00000, 0x10000, CRC(b61c0695) SHA1(63c44b20fd7f76bdb33331273d2610e8cfd31add) )
+	ROM_LOAD( "ol-v9.u20",       0x00000, 0x10000, CRC(b61c0695) SHA1(63c44b20fd7f76bdb33331273d2610e8cfd31add) )
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "ol-la.u1",      0x00000, 0x20000, CRC(c3c912f1) SHA1(a2131f092ae1971f79a11d6a18b031cd98529320) )
+	ROM_LOAD( "ol-la.u1",        0x00000, 0x20000, CRC(c3c912f1) SHA1(a2131f092ae1971f79a11d6a18b031cd98529320) )
 
 	ROM_REGION( 0x08000, "gfx2", 0 )
-	ROM_LOAD( "1.u3",      0x00000, 0x08000, CRC(32b46e5c) SHA1(49e59589188324e15ec2b8157839423faea9833f) )
+	ROM_LOAD( "1.u3",            0x00000, 0x08000, CRC(32b46e5c) SHA1(49e59589188324e15ec2b8157839423faea9833f) )
 
 	ROM_REGION( 0x0200, "proms", 0 )
-	ROM_LOAD( "82s147.u2",      0x00000, 0x0200, CRC(5c8f2b8f) SHA1(67d2121e75813dd85d83858c5fc5ec6ad9cc2a7d) )
+	ROM_LOAD( "82s147.u2",       0x00000, 0x0200, CRC(5c8f2b8f) SHA1(67d2121e75813dd85d83858c5fc5ec6ad9cc2a7d) )
 
 	ROM_REGION( 0x02dd, "palgal", 0 )
-	ROM_LOAD( "gal20v8.pl1.bad.dump",    0x00000, 0x0157, BAD_DUMP CRC(bf885908) SHA1(6cac1022172ee0c178fd3b9c187b1ffb4742898f) )
-	ROM_LOAD( "palce20v8h.pl2.bad.dump", 0x00000, 0x0157, BAD_DUMP CRC(f0c6d78c) SHA1(03ff589711179950209c405192bd41a032c6c6d6) )
-	ROM_LOAD( "palce16v8h.pl4.bad.dump", 0x00000, 0x0117, BAD_DUMP CRC(c89d2f52) SHA1(f9d52d9c42ef95b7b85bbf6d09888ebdeac11fd3) )
-	ROM_LOAD( "peel22cv10a.pl5.bad.dump",0x00000, 0x02dd, BAD_DUMP CRC(8e6075d9) SHA1(f2c1b6497a4d9e873d36b89771c135a2cd91d05f) )
-	ROM_LOAD( "palce16v8h.pl6.bad.dump", 0x00000, 0x0117, BAD_DUMP CRC(7e3d99d8) SHA1(983e10eba11e4aeab5103ae644a8e6181d9b27a9) )
-	ROM_LOAD( "palce16v8h.pl7.bad.dump", 0x00000, 0x0117, BAD_DUMP CRC(c89d2f52) SHA1(f9d52d9c42ef95b7b85bbf6d09888ebdeac11fd3) )
+	ROM_LOAD( "gal20v8.pl1",     0x00000, 0x0157, NO_DUMP )
+	ROM_LOAD( "palce20v8h.pl2",  0x00000, 0x0157, NO_DUMP )
+	ROM_LOAD( "palce16v8h.pl4",  0x00000, 0x0117, NO_DUMP )
+	ROM_LOAD( "peel22cv10a.pl5", 0x00000, 0x02dd, NO_DUMP )
+	ROM_LOAD( "palce16v8h.pl6",  0x00000, 0x0117, NO_DUMP )
+	ROM_LOAD( "palce16v8h.pl7",  0x00000, 0x0117, NO_DUMP )
 ROM_END
 
 
@@ -13745,8 +13868,10 @@ ROM_START( fb2010 )
 	ROM_CONTINUE(0xd000, 0x1000)
 	ROM_CONTINUE(0xe000, 0x1000)
 	ROM_CONTINUE(0xf000, 0x1000)
+
 	ROM_REGION( 0x20000, "graphics", 0 )
-	ROM_LOAD( "gfx",  0x00000, 0x20000, NO_DUMP )
+	ROM_LOAD( "high.bin", 0x00000, 0x10000, CRC(5950b5fb) SHA1(64441fdbd768e7765e20a33acd4002e69b868f09) )
+	ROM_LOAD( "low.bin",  0x10000, 0x10000, CRC(98b0454f) SHA1(91f7f4119a0cd591e68c87a9e716a8cd5233a4aa) )
 
 	ROM_REGION( 0x18000, "gfx1", 0 )
 	ROM_COPY( "graphics", 0x18000, 0x00000, 0x4000 ) // 1
@@ -13762,11 +13887,9 @@ ROM_START( fb2010 )
 	ROM_COPY( "graphics", 0x00000, 0x04000, 0x2000 )
 	ROM_COPY( "graphics", 0x10000, 0x06000, 0x2000 )
 
-	ROM_REGION( 0x200, "proms", 0 ) // palette
-	ROM_LOAD( "proms", 0x0000, 0x0200, NO_DUMP )
-
-	ROM_REGION( 0x80000, "oki", 0 ) // samples
-	ROM_LOAD( "samples", 0x00000, 0x20000, NO_DUMP )
+	ROM_REGION( 0x200, "proms", 0 ) // palette (taken from nfb96se, not verified)
+	ROM_LOAD( "chu19.bin", 0x0000, 0x0100, BAD_DUMP CRC(fafc43ad) SHA1(e94592b83f19e5f9b6205473c1e06b36405ebfc2) )
+	ROM_LOAD( "chu20.bin", 0x0100, 0x0100, BAD_DUMP CRC(05224f73) SHA1(051c3ee9c63f5436e4f6c355fc308f37910a88ef) )
 ROM_END
 
 
@@ -13780,7 +13903,7 @@ void cmaster_state::init_fb2010()
 		switch (i & 0x22)
 		{
 			case 0x00: x = bitswap<8>(x^0x4c^0xff, 0,4,7,6,5,1,3,2); break;
-			case 0x02: x = bitswap<8>(x^0xc0^0xff, 7,6,0,5,3,2,1,4); break; //   67053214
+			case 0x02: x = bitswap<8>(x^0xc0^0xff, 7,6,0,5,3,2,1,4); break;
 			case 0x20: x = bitswap<8>(x^0x6b^0xff, 4,3,2,7,5,6,0,1); break;
 			case 0x22: x = bitswap<8>(x^0x23^0xff, 0,6,1,3,4,5,2,7); break;
 		}
@@ -13788,7 +13911,12 @@ void cmaster_state::init_fb2010()
 		ROM[i] = x;
 	}
 
-	m_maincpu->space(AS_IO).install_read_handler(0x1e, 0x1e, read8_delegate(FUNC(cmaster_state::fixedval82_r),this));
+	// some kind of protection? checks something in NVRAM after a few spins?
+	// TODO: work out how to handle this without a patch, doesn't seem 100% related to port read below like in other games?
+	ROM[0x10dc] = 0x00;
+	ROM[0x10dd] = 0x00;
+
+	m_maincpu->space(AS_IO).install_read_handler(0x1e, 0x1e, read8_delegate(FUNC(cmaster_state::fixedval7d_r),this));
 }
 
 
@@ -13948,6 +14076,49 @@ ROM_START( nfb96seb )
 	ROM_LOAD( "chu1920.bin", 0x0000, 0x0100, CRC(71b0e11d) SHA1(1d2a2a31d8571f580c0cb7f4833823841072b31f) )
 ROM_END
 
+ROM_START( nfb96sec )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "u34",0x00000, 0x1000, CRC(65e7a70d) SHA1(77b8b7e16e842d6debf9bb13d83dbf4289ab0bd4) )
+	ROM_CONTINUE(0x4000, 0x1000)
+	ROM_CONTINUE(0x3000, 0x1000)
+	ROM_CONTINUE(0x7000, 0x1000)
+	ROM_CONTINUE(0x1000, 0x1000)
+	ROM_CONTINUE(0x6000, 0x1000)
+	ROM_CONTINUE(0x2000, 0x1000)
+	ROM_CONTINUE(0x5000, 0x1000)
+	ROM_CONTINUE(0x8000, 0x1000)
+	ROM_CONTINUE(0x9000, 0x1000)
+	ROM_CONTINUE(0xa000, 0x1000)
+	ROM_CONTINUE(0xb000, 0x1000)
+	ROM_CONTINUE(0xc000, 0x1000)
+	ROM_CONTINUE(0xd000, 0x1000)
+	ROM_CONTINUE(0xe000, 0x1000)
+	ROM_CONTINUE(0xf000, 0x1000)
+
+	ROM_REGION( 0x10000, "user1", ROMREGION_ERASEFF )
+
+	ROM_REGION( 0x18000, "gfx1", 0 ) // Same data as other sets, arranged differently
+	ROM_LOAD( "u2", 0x00000, 0x08000, CRC(7d245ff8) SHA1(eebc3c0700aaa5e8d0be22d411f097607e179d5e) )
+	ROM_CONTINUE(   0x10000, 0x08000 )
+	ROM_CONTINUE(   0x08000, 0x08000 )
+	ROM_CONTINUE(   0x00000, 0x08000 )
+
+	ROM_REGION( 0x10000, "gfx2", 0 ) // Same data as other sets, arranged differently
+	ROM_LOAD( "u35", 0x0000, 0x4000, CRC(ddd6b7cb) SHA1(ff5161d7d25b216fd507a43f9102cde1e1518593) ) // 0xxxxxxxxxxxxxx = 0xFF
+	ROM_CONTINUE(    0x2000, 0x2000 )
+	ROM_CONTINUE(    0x0000, 0x2000 )
+	ROM_LOAD( "u1",  0x4000, 0x4000, CRC(fdbb5896) SHA1(edfcfcfbf6306ff40c517eeeb05f91b869ba40d2) ) // 0xxxxxxxxxxxxxx = 0xFF
+	ROM_CONTINUE(    0x6000, 0x2000 )
+	ROM_CONTINUE(    0x4000, 0x2000 )
+
+	// taken from new fruit bonus '96, might be wrong
+	ROM_REGION( 0x200, "proms", 0 ) // palette
+	ROM_LOAD( "chu19.bin", 0x0000, 0x0100, CRC(fafc43ad) SHA1(e94592b83f19e5f9b6205473c1e06b36405ebfc2) )
+	ROM_LOAD( "chu20.bin", 0x0100, 0x0100, CRC(05224f73) SHA1(051c3ee9c63f5436e4f6c355fc308f37910a88ef) )
+
+	ROM_REGION( 0x100, "proms2", 0 ) // colours again?
+	ROM_LOAD( "chu1920.bin", 0x0000, 0x0100, CRC(71b0e11d) SHA1(1d2a2a31d8571f580c0cb7f4833823841072b31f) )
+ROM_END
 
 // this contains elephants etc. instead of the usual symbols, maybe
 // it's meant to work with the above program roms?
@@ -16540,6 +16711,37 @@ void cmaster_state::init_super7()
 	}
 }
 
+void wingco_state::init_luckylad()
+{
+	uint8_t *ROM = memregion("maincpu")->base();
+
+	for (int i = 0x0000; i < 0x8000; i++)
+	{
+		uint8_t x = ROM[i];
+		switch (i & 0x1111) // preliminary, text in 0x3ab0-0x3c70, 0x4c00-0x5160 ranges seems mostly ok, seems similar to the one used in luckygrl (jangou.cpp).
+		{
+			case 0x0000: x = bitswap<8>(x ^ 0x00, 7, 6, 5, 4, 3, 2, 1, 0); break;
+			case 0x0001: x = bitswap<8>(x ^ 0xa0, 3, 6, 5, 4, 7, 2, 1, 0); break;
+			case 0x0010: x = bitswap<8>(x ^ 0x88, 5, 6, 7, 4, 3, 2, 1, 0); break;
+			case 0x0011: x = bitswap<8>(x ^ 0x28, 3, 6, 7, 4, 5, 2, 1, 0); break;
+			case 0x0100: x = bitswap<8>(x ^ 0x28, 3, 6, 7, 4, 5, 2, 1, 0); break;
+			case 0x0101: x = bitswap<8>(x ^ 0x20, 5, 6, 7, 4, 3, 2, 1, 0); break;
+			case 0x0110: x = bitswap<8>(x ^ 0x28, 5, 6, 3, 4, 7, 2, 1, 0); break;
+			case 0x0111: x = bitswap<8>(x ^ 0x88, 5, 6, 7, 4, 3, 2, 1, 0); break;
+			case 0x1000: x = bitswap<8>(x ^ 0x20, 5, 6, 7, 4, 3, 2, 1, 0); break;
+			case 0x1001: x = bitswap<8>(x ^ 0x00, 7, 6, 5, 4, 3, 2, 1, 0); break;
+			case 0x1010: x = bitswap<8>(x ^ 0xa0, 3, 6, 5, 4, 7, 2, 1, 0); break;
+			case 0x1011: x = bitswap<8>(x ^ 0x80, 7, 6, 3, 4, 5, 2, 1, 0); break;
+			case 0x1100: x = bitswap<8>(x ^ 0x28, 5, 6, 3, 4, 7, 2, 1, 0); break;
+			case 0x1101: x = bitswap<8>(x ^ 0x28, 5, 6, 3, 4, 7, 2, 1, 0); break;
+			case 0x1110: x = bitswap<8>(x ^ 0x80, 7, 6, 3, 4, 5, 2, 1, 0); break;
+			case 0x1111: x = bitswap<8>(x ^ 0x00, 7, 6, 5, 4, 3, 2, 1, 0); break;
+		}
+
+		ROM[i] = x;
+	}
+}
+
 /*********************************************
 *                Game Drivers                *
 **********************************************
@@ -16631,7 +16833,7 @@ GAMEL( 198?, kkotnoli,  0,        kkotnoli, kkotnoli, goldstar_state, empty_init
 GAME(  198?, ladylinr,  0,        ladylinr, ladylinr, goldstar_state, empty_init,     ROT0, "TAB Austria",       "Lady Liner",                                               0 )
 GAME(  198?, wcat3,     0,        wcat3,    lucky8,   wingco_state,   empty_init,     ROT0, "E.A.I.",            "Wild Cat 3",                                               MACHINE_NOT_WORKING )
 
-GAME(  1985, luckylad,  0,        lucky8,   luckylad, wingco_state,   empty_init,     ROT0, "Wing Co., Ltd.",    "Lucky Lady (Wing, encrypted)",                             MACHINE_NOT_WORKING )  // encrypted (see notes in rom_load)...
+GAME(  1985, luckylad,  0,        lucky8,   luckylad, wingco_state,   init_luckylad,  ROT0, "Wing Co., Ltd.",    "Lucky Lady (Wing, encrypted)",                             MACHINE_NOT_WORKING )  // encrypted (see notes in rom_load)...
 GAME(  1991, megaline,  0,        megaline, megaline, unkch_state,    empty_init,     ROT0, "Fun World",         "Mega Lines",                                               MACHINE_NOT_WORKING )
 
 GAMEL( 1993, bingowng,  0,        bingowng, bingowng, wingco_state,   empty_init,     ROT0, "Wing Co., Ltd.",    "Bingo (set 1)",                                            0,                     layout_bingowng )
@@ -16691,7 +16893,7 @@ GAMEL( 1996, nc96e,     nc96,     amcoe2,   nfb96,     cmaster_state,  init_nfb9
 GAMEL( 1996, nc96f,     nc96,     amcoe2,   nfb96,     cmaster_state,  init_nfb96_dk, ROT0, "Amcoe",   "New Cherry '96 Special Edition (v3.62, DK PCB)",               0,                 layout_nfb96 ) /* DK Sub-PCB */
 GAMEL( 2000, nc96txt,   nc96,     amcoe2,   nfb96tx,   cmaster_state,  init_nfb96_c2, ROT0, "Amcoe",   "New Cherry '96 Special Edition (v1.32 Texas XT, C2 PCB)",      0,                 layout_nfb96tx ) /* ver. tc1.32axt C2 Sub-PCB */
 
-GAME(  2009, fb2010,    0,        amcoe2,   nfb96tx,   cmaster_state,  init_fb2010,   ROT0, "Amcoe",   "Fruit Bonus 2010",                                             MACHINE_NOT_WORKING ) // no gfx dumped
+GAME(  2009, fb2010,    0,        amcoe2,   fb2010,    cmaster_state,  init_fb2010,   ROT0, "Amcoe",   "Fruit Bonus 2010",                                             0 )
 
 GAMEL( 1996, roypok96,  0,        amcoe2,   roypok96,  cmaster_state,  init_rp35,     ROT0, "Amcoe",   "Royal Poker '96 (set 1, v97-3.5)",                             0,                 layout_roypok96 )
 GAMEL( 1996, roypok96a, roypok96, amcoe2,   roypok96a, cmaster_state,  init_rp36,     ROT0, "Amcoe",   "Royal Poker '96 (set 2, v98-3.6)",                             0,                 layout_roypok96 )
@@ -16706,6 +16908,7 @@ GAME(  1996, roypok96c, roypok96, amcoe2,   roypok96a, cmaster_state,  init_rp96
 GAME( 1996, nfb96se,   nfb96,    amcoe2,   nfb96bl,   cmaster_state,  empty_init,     ROT0, "bootleg", "New Fruit Bonus '96 Special Edition (bootleg set 1, v97-3.3c Portuguese)", 0 )
 GAME( 1996, nfb96sea,  nfb96,    amcoe2,   nfb96bl,   cmaster_state,  init_nfb96sea,  ROT0, "bootleg", "New Fruit Bonus '96 Special Edition (bootleg set 2, v97-3.3c English)",    MACHINE_WRONG_COLORS ) // encrypted program
 GAME( 1996, nfb96seb,  nfb96,    amcoe2,   nfb96bl,   cmaster_state,  empty_init,     ROT0, "bootleg", "New Fruit Bonus '96 Special Edition (bootleg set 3, v97-3.3c Portuguese)", MACHINE_WRONG_COLORS )
+GAME( 1996, nfb96sec,  nfb96,    amcoe2,   nfb96bl,   cmaster_state,  empty_init,     ROT0, "bootleg", "New Fruit Bonus '96 Special Edition (bootleg set 4, v97-3.3c English)",    MACHINE_WRONG_COLORS )
 GAME( 2002, carb2002,  nfb96,    amcoe2,   nfb96bl,   cmaster_state,  empty_init,     ROT0, "bootleg", "Carriage Bonus 2002 (bootleg)",                                            MACHINE_WRONG_COLORS )
 GAME( 2003, carb2003,  nfb96,    amcoe2,   nfb96bl,   cmaster_state,  empty_init,     ROT0, "bootleg", "Carriage Bonus 2003 (bootleg)",                                            MACHINE_WRONG_COLORS )
 

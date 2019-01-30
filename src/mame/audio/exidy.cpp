@@ -397,27 +397,27 @@ WRITE8_MEMBER(exidy_sh8253_sound_device::r6532_porta_w)
 	if (m_tms.found())
 	{
 		logerror("(%f)%s:TMS5220 data write = %02X\n", machine().time().as_double(), machine().describe_context(), m_riot->porta_out_get());
-		m_tms->data_w(space, 0, data);
+		m_tms->data_w(data);
 	}
 }
 
 READ8_MEMBER(exidy_sh8253_sound_device::r6532_porta_r)
 {
+	uint8_t status = 0xff;
 	if (m_tms.found())
 	{
-		logerror("(%f)%s:TMS5220 status read = %02X\n", machine().time().as_double(), machine().describe_context(), m_tms->status_r(space, 0));
-		return m_tms->status_r(space, 0);
+		status = m_tms->status_r();
+		logerror("(%f)%s:TMS5220 status read = %02X\n", machine().time().as_double(), machine().describe_context(), status);
 	}
-	else
-		return 0xff;
+	return status;
 }
 
 WRITE8_MEMBER(exidy_sh8253_sound_device::r6532_portb_w)
 {
 	if (m_tms.found())
 	{
-		m_tms->rsq_w(data & 0x01);
-		m_tms->wsq_w((data >> 1) & 0x01);
+		m_tms->rsq_w(BIT(data, 0));
+		m_tms->wsq_w(BIT(data, 1));
 	}
 }
 
@@ -768,8 +768,7 @@ MACHINE_CONFIG_START(venture_sound_device::device_add_mconfig)
 	m_pia->cb2_handler().set(FUNC(venture_sound_device::pia_cb2_w));
 	m_pia->irqb_handler().set("audioirq", FUNC(input_merger_device::in_w<1>));
 
-	MCFG_INPUT_MERGER_ANY_HIGH("audioirq") // open collector
-	MCFG_INPUT_MERGER_OUTPUT_HANDLER(INPUTLINE("audiocpu", m6502_device::IRQ_LINE))
+	INPUT_MERGER_ANY_HIGH(config, "audioirq").output_handler().set_inputline("audiocpu", m6502_device::IRQ_LINE); // open collector
 
 	SPEAKER(config, "mono").front_center();
 
@@ -997,8 +996,7 @@ MACHINE_CONFIG_START(victory_sound_device::device_add_mconfig)
 	m_pia->cb2_handler().set(FUNC(victory_sound_device::main_ack_w));
 	m_pia->irqb_handler().set("audioirq", FUNC(input_merger_device::in_w<1>));
 
-	MCFG_INPUT_MERGER_ANY_HIGH("audioirq") // open collector
-	MCFG_INPUT_MERGER_OUTPUT_HANDLER(INPUTLINE("audiocpu", m6502_device::IRQ_LINE))
+	INPUT_MERGER_ANY_HIGH(config, "audioirq").output_handler().set_inputline("audiocpu", m6502_device::IRQ_LINE); // open collector
 
 	SPEAKER(config, "mono").front_center();
 

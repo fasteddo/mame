@@ -10,6 +10,7 @@
 
 #include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
+#include "imagedev/floppy.h"
 #include "machine/z80daisy.h"
 #include "machine/6821pia.h"
 #include "machine/input_merger.h"
@@ -54,7 +55,7 @@ public:
 	void init_osbexec();
 
 private:
-	required_device<cpu_device> m_maincpu;
+	required_device<z80_device> m_maincpu;
 	required_device<screen_device> m_screen;
 	required_device<mb8877_device>  m_mb8877;
 	required_device<ram_device> m_messram;
@@ -528,20 +529,20 @@ static const z80_daisy_config osbexec_daisy_config[] =
 
 
 MACHINE_CONFIG_START(osbexec_state::osbexec)
-	MCFG_DEVICE_ADD(m_maincpu, Z80, MAIN_CLOCK/6)
-	MCFG_DEVICE_PROGRAM_MAP(osbexec_mem)
-	MCFG_DEVICE_IO_MAP(osbexec_io)
-	MCFG_Z80_DAISY_CHAIN(osbexec_daisy_config)
+	Z80(config, m_maincpu, MAIN_CLOCK/6);
+	m_maincpu->set_addrmap(AS_PROGRAM, &osbexec_state::osbexec_mem);
+	m_maincpu->set_addrmap(AS_IO, &osbexec_state::osbexec_io);
+	m_maincpu->set_daisy_config(osbexec_daisy_config);
 
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
 	m_screen->set_color(rgb_t::green());
 	m_screen->set_screen_update(FUNC(osbexec_state::screen_update));
-	m_screen->set_raw(MAIN_CLOCK/2, 768, 0, 640, 260, 0, 240);    /* May not be correct */
+	m_screen->set_raw(MAIN_CLOCK/2, 768, 0, 640, 260, 0, 240);    // May not be correct
 	m_screen->set_palette("palette");
 	m_screen->screen_vblank().set(m_pia[0], FUNC(pia6821_device::cb1_w));
 	m_screen->screen_vblank().append(m_rtc, FUNC(ripple_counter_device::clock_w)).invert();
 
-	MCFG_PALETTE_ADD_MONOCHROME_HIGHLIGHT("palette")
+	PALETTE(config, "palette", palette_device::MONOCHROME_HIGHLIGHT);
 
 	SPEAKER(config, "mono").front_center();
 	MCFG_DEVICE_ADD(m_speaker, SPEAKER_SOUND)
@@ -598,8 +599,8 @@ MACHINE_CONFIG_START(osbexec_state::osbexec)
 	printer_port.dcd_handler().set(m_sio, FUNC(z80sio_device::dcdb_w));
 	printer_port.cts_handler().set(m_sio, FUNC(z80sio_device::ctsb_w));
 
-	MCFG_DEVICE_ADD("mb8877", MB8877, MAIN_CLOCK/24)
-	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(m_pia[1], pia6821_device, cb1_w))
+	MB8877(config, m_mb8877, MAIN_CLOCK/24);
+	m_mb8877->intrq_wr_callback().set(m_pia[1], FUNC(pia6821_device::cb1_w));
 	MCFG_FLOPPY_DRIVE_ADD("mb8877:0", osborne2_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("mb8877:1", osborne2_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
 

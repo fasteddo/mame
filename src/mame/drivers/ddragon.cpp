@@ -574,11 +574,6 @@ void ddragon_state::dd2_sub_map(address_map &map)
 	map(0xe000, 0xe000).w(FUNC(ddragon_state::ddragon2_sub_irq_w));
 }
 
-void ddragon_state::ddragonba_sub_portmap(address_map &map)
-{
-	map(0x0000, 0x01ff).w(FUNC(ddragon_state::ddragonba_port_w));
-}
-
 
 /*************************************
  *
@@ -946,208 +941,198 @@ GFXDECODE_END
  *
  *************************************/
 
-MACHINE_CONFIG_START(ddragon_state::ddragon)
-
+void ddragon_state::ddragon(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", HD6309E, MAIN_CLOCK / 4)     /* HD63C09EP, 3 MHz */
-	MCFG_DEVICE_PROGRAM_MAP(ddragon_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddragon_state, ddragon_scanline, "screen", 0, 1)
+	HD6309E(config, m_maincpu, MAIN_CLOCK / 4); /* HD63C09EP, 3 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &ddragon_state::ddragon_map);
+	TIMER(config, "scantimer").configure_scanline(FUNC(ddragon_state::ddragon_scanline), "screen", 0, 1);
 
-	MCFG_DEVICE_ADD("sub", HD63701, MAIN_CLOCK / 2)    /* HD63701YOP, 6 MHz / 4 internally */
-	MCFG_DEVICE_PROGRAM_MAP(sub_map)
+	HD63701(config, m_subcpu, MAIN_CLOCK / 2);  /* HD63701YOP, 6 MHz / 4 internally */
+	m_subcpu->set_addrmap(AS_PROGRAM, &ddragon_state::sub_map);
 
-	MCFG_DEVICE_ADD("soundcpu", MC6809, MAIN_CLOCK / 2) /* HD68A09P, 6 MHz / 4 internally */
-	MCFG_DEVICE_PROGRAM_MAP(sound_map)
+	MC6809(config, m_soundcpu, MAIN_CLOCK / 2); /* HD68A09P, 6 MHz / 4 internally */
+	m_soundcpu->set_addrmap(AS_PROGRAM, &ddragon_state::sound_map);
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(60000)) /* heavy interleaving to sync up sprite<->main CPUs */
+	config.m_minimum_quantum = attotime::from_hz(60000); /* heavy interleaving to sync up sprite<->main CPUs */
 
 	MCFG_MACHINE_START_OVERRIDE(ddragon_state,ddragon)
 	MCFG_MACHINE_RESET_OVERRIDE(ddragon_state,ddragon)
 
 	/* video hardware */
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ddragon)
-	MCFG_PALETTE_ADD("palette", 384)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ddragon);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 512);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)
-	MCFG_SCREEN_UPDATE_DRIVER(ddragon_state, screen_update_ddragon)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_raw(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240);
+	m_screen->set_screen_update(FUNC(ddragon_state::screen_update_ddragon));
+	m_screen->set_palette(m_palette);
 
 	MCFG_VIDEO_START_OVERRIDE(ddragon_state,ddragon)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", M6809_IRQ_LINE))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_soundcpu, M6809_IRQ_LINE);
 
-	MCFG_DEVICE_ADD("fmsnd", YM2151, SOUND_CLOCK)
-	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("soundcpu", M6809_FIRQ_LINE))
-	MCFG_SOUND_ROUTE(0, "mono", 0.60)
-	MCFG_SOUND_ROUTE(1, "mono", 0.60)
+	ym2151_device &fmsnd(YM2151(config, "fmsnd", SOUND_CLOCK));
+	fmsnd.irq_handler().set_inputline(m_soundcpu, M6809_FIRQ_LINE);
+	fmsnd.add_route(0, "mono", 0.60);
+	fmsnd.add_route(1, "mono", 0.60);
 
-	MCFG_DEVICE_ADD("adpcm1", MSM5205, MAIN_CLOCK / 32)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(*this, ddragon_state, dd_adpcm_int_1))   /* interrupt function */
-	MCFG_MSM5205_PRESCALER_SELECTOR(S48_4B)  /* 8kHz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	MSM5205(config, m_adpcm[0], MAIN_CLOCK / 32);
+	m_adpcm[0]->vck_legacy_callback().set(FUNC(ddragon_state::dd_adpcm_int_1));   /* interrupt function */
+	m_adpcm[0]->set_prescaler_selector(msm5205_device::S48_4B);  /* 8kHz */
+	m_adpcm[0]->add_route(ALL_OUTPUTS, "mono", 0.50);
 
-	MCFG_DEVICE_ADD("adpcm2", MSM5205, MAIN_CLOCK / 32)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(*this, ddragon_state, dd_adpcm_int_2))   /* interrupt function */
-	MCFG_MSM5205_PRESCALER_SELECTOR(S48_4B)  /* 8kHz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	MSM5205(config, m_adpcm[1], MAIN_CLOCK / 32);
+	m_adpcm[1]->vck_legacy_callback().set(FUNC(ddragon_state::dd_adpcm_int_2));   /* interrupt function */
+	m_adpcm[1]->set_prescaler_selector(msm5205_device::S48_4B);  /* 8kHz */
+	m_adpcm[1]->add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
-
-MACHINE_CONFIG_START(ddragon_state::ddragonb)
+void ddragon_state::ddragonb(machine_config &config)
+{
 	ddragon(config);
 
 	/* basic machine hardware */
-	MCFG_DEVICE_REPLACE("sub", HD6309E, MAIN_CLOCK / 8)  /* 1.5MHz; labeled "ENC EL1200AR" on one PCB */
-	MCFG_DEVICE_PROGRAM_MAP(sub_map)
-MACHINE_CONFIG_END
+	HD6309E(config.replace(), m_subcpu, MAIN_CLOCK / 8);  /* 1.5MHz; labeled "ENC EL1200AR" on one PCB */
+	m_subcpu->set_addrmap(AS_PROGRAM, &ddragon_state::sub_map);
+}
 
-
-MACHINE_CONFIG_START(ddragon_state::ddragonba)
+void ddragon_state::ddragonba(machine_config &config)
+{
 	ddragon(config);
 
 	/* basic machine hardware */
-	MCFG_DEVICE_REPLACE("sub", M6803, MAIN_CLOCK / 2)  /* 6MHz / 4 internally */
-	MCFG_DEVICE_PROGRAM_MAP(ddragonba_sub_map)
-	MCFG_DEVICE_IO_MAP(ddragonba_sub_portmap)
-MACHINE_CONFIG_END
+	m6803_cpu_device &sub(M6803(config.replace(), "sub", MAIN_CLOCK / 2));  // 6MHz / 4 internally
+	sub.set_addrmap(AS_PROGRAM, &ddragon_state::ddragonba_sub_map);
+	sub.out_p2_cb().set(FUNC(ddragon_state::ddragonba_port_w));
+}
 
 
-MACHINE_CONFIG_START(ddragon_state::ddragon6809)
-
+void ddragon_state::ddragon6809(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", MC6809E, MAIN_CLOCK / 8)  /* 1.5 MHz */
-	MCFG_DEVICE_PROGRAM_MAP(ddragon_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddragon_state, ddragon_scanline, "screen", 0, 1)
+	MC6809E(config, m_maincpu, MAIN_CLOCK / 8);     /* 1.5 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &ddragon_state::ddragon_map);
+	TIMER(config, "scantimer").configure_scanline(FUNC(ddragon_state::ddragon_scanline), "screen", 0, 1);
 
-	MCFG_DEVICE_ADD("sub", MC6809E, MAIN_CLOCK / 8)  /* 1.5 Mhz */
-	MCFG_DEVICE_PROGRAM_MAP(sub_map)
+	MC6809E(config, m_subcpu, MAIN_CLOCK / 8);      /* 1.5 Mhz */
+	m_subcpu->set_addrmap(AS_PROGRAM, &ddragon_state::sub_map);
 
-	MCFG_DEVICE_ADD("soundcpu", MC6809E, MAIN_CLOCK / 8) /* 1.5 MHz */
-	MCFG_DEVICE_PROGRAM_MAP(sound_map)
+	MC6809E(config, m_soundcpu, MAIN_CLOCK / 8);    /* 1.5 MHz */
+	m_soundcpu->set_addrmap(AS_PROGRAM, &ddragon_state::sound_map);
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(60000)) /* heavy interleaving to sync up sprite<->main CPUs */
+	config.m_minimum_quantum = attotime::from_hz(60000); /* heavy interleaving to sync up sprite<->main CPUs */
 
 	MCFG_MACHINE_START_OVERRIDE(ddragon_state,ddragon)
 	MCFG_MACHINE_RESET_OVERRIDE(ddragon_state,ddragon)
 
 	/* video hardware */
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ddragon)
-	MCFG_PALETTE_ADD("palette", 384)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ddragon);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 512);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)
-	MCFG_SCREEN_UPDATE_DRIVER(ddragon_state, screen_update_ddragon)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_raw(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240);
+	m_screen->set_screen_update(FUNC(ddragon_state::screen_update_ddragon));
+	m_screen->set_palette(m_palette);
 
 	MCFG_VIDEO_START_OVERRIDE(ddragon_state,ddragon)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", M6809_IRQ_LINE))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_soundcpu, M6809_IRQ_LINE);
 
-	MCFG_DEVICE_ADD("fmsnd", YM2151, SOUND_CLOCK)
-	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("soundcpu", M6809_FIRQ_LINE))
-	MCFG_SOUND_ROUTE(0, "mono", 0.60)
-	MCFG_SOUND_ROUTE(1, "mono", 0.60)
+	ym2151_device &fmsnd(YM2151(config, "fmsnd", SOUND_CLOCK));
+	fmsnd.irq_handler().set_inputline(m_soundcpu, M6809_FIRQ_LINE);
+	fmsnd.add_route(0, "mono", 0.60);
+	fmsnd.add_route(1, "mono", 0.60);
 
-	MCFG_DEVICE_ADD("adpcm1", MSM5205, MAIN_CLOCK/32)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(*this, ddragon_state, dd_adpcm_int_1))   /* interrupt function */
-	MCFG_MSM5205_PRESCALER_SELECTOR(S48_4B)  /* 8kHz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	MSM5205(config, m_adpcm[0], MAIN_CLOCK/32);
+	m_adpcm[0]->vck_legacy_callback().set(FUNC(ddragon_state::dd_adpcm_int_1));   /* interrupt function */
+	m_adpcm[0]->set_prescaler_selector(msm5205_device::S48_4B);  /* 8kHz */
+	m_adpcm[0]->add_route(ALL_OUTPUTS, "mono", 0.50);
 
-	MCFG_DEVICE_ADD("adpcm2", MSM5205, MAIN_CLOCK/32)
-	MCFG_MSM5205_VCLK_CB(WRITELINE(*this, ddragon_state, dd_adpcm_int_2))   /* interrupt function */
-	MCFG_MSM5205_PRESCALER_SELECTOR(S48_4B)  /* 8kHz */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-MACHINE_CONFIG_END
+	MSM5205(config, m_adpcm[1], MAIN_CLOCK/32);
+	m_adpcm[1]->vck_legacy_callback().set(FUNC(ddragon_state::dd_adpcm_int_2));   /* interrupt function */
+	m_adpcm[1]->set_prescaler_selector(msm5205_device::S48_4B);  /* 8kHz */
+	m_adpcm[1]->add_route(ALL_OUTPUTS, "mono", 0.50);
+}
 
-
-MACHINE_CONFIG_START(ddragon_state::ddragon2)
-
+void ddragon_state::ddragon2(machine_config &config)
+{
 	/* basic machine hardware */
-	MCFG_DEVICE_ADD("maincpu", HD6309E, MAIN_CLOCK / 4)     /* HD63C09EP, 3 MHz */
-	MCFG_DEVICE_PROGRAM_MAP(dd2_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddragon_state, ddragon_scanline, "screen", 0, 1)
+	HD6309E(config, m_maincpu, MAIN_CLOCK / 4); /* HD63C09EP, 3 MHz */
+	m_maincpu->set_addrmap(AS_PROGRAM, &ddragon_state::dd2_map);
+	TIMER(config, "scantimer").configure_scanline(FUNC(ddragon_state::ddragon_scanline), "screen", 0, 1);
 
-	MCFG_DEVICE_ADD("sub", Z80, MAIN_CLOCK / 3)        /* 4 MHz */
-	MCFG_DEVICE_PROGRAM_MAP(dd2_sub_map)
+	Z80(config, m_subcpu, MAIN_CLOCK / 3);      /* 4 MHz */
+	m_subcpu->set_addrmap(AS_PROGRAM, &ddragon_state::dd2_sub_map);
 
-	MCFG_DEVICE_ADD("soundcpu", Z80, 3579545)
-	MCFG_DEVICE_PROGRAM_MAP(dd2_sound_map)
+	Z80(config, m_soundcpu, 3579545);
+	m_soundcpu->set_addrmap(AS_PROGRAM, &ddragon_state::dd2_sound_map);
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(60000)) /* heavy interleaving to sync up sprite<->main CPUs */
+	config.m_minimum_quantum = attotime::from_hz(60000); /* heavy interleaving to sync up sprite<->main CPUs */
 
 	MCFG_MACHINE_START_OVERRIDE(ddragon_state,ddragon)
 	MCFG_MACHINE_RESET_OVERRIDE(ddragon_state,ddragon)
 
 	/* video hardware */
-	MCFG_DEVICE_ADD("gfxdecode", GFXDECODE, "palette", gfx_ddragon)
-	MCFG_PALETTE_ADD("palette", 384)
-	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ddragon);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_444, 512);
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)
-	MCFG_SCREEN_UPDATE_DRIVER(ddragon_state, screen_update_ddragon)
-	MCFG_SCREEN_PALETTE("palette")
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_raw(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240);
+	m_screen->set_screen_update(FUNC(ddragon_state::screen_update_ddragon));
+	m_screen->set_palette(m_palette);
 
 	MCFG_VIDEO_START_OVERRIDE(ddragon_state,ddragon)
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
 
-	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
+	GENERIC_LATCH_8(config, m_soundlatch);
+	m_soundlatch->data_pending_callback().set_inputline(m_soundcpu, INPUT_LINE_NMI);
 
-	MCFG_DEVICE_ADD("fmsnd", YM2151, SOUND_CLOCK)
-	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("soundcpu", 0))
-	MCFG_SOUND_ROUTE(0, "mono", 0.60)
-	MCFG_SOUND_ROUTE(1, "mono", 0.60)
+	ym2151_device &fmsnd(YM2151(config, "fmsnd", SOUND_CLOCK));
+	fmsnd.irq_handler().set_inputline(m_soundcpu, 0);
+	fmsnd.add_route(0, "mono", 0.60);
+	fmsnd.add_route(1, "mono", 0.60);
 
-	MCFG_DEVICE_ADD("oki", OKIM6295, 1056000, okim6295_device::PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
-MACHINE_CONFIG_END
+	okim6295_device &oki(OKIM6295(config, "oki", 1056000, okim6295_device::PIN7_HIGH)); // clock frequency & pin 7 not verified
+	oki.add_route(ALL_OUTPUTS, "mono", 0.20);
+}
 
-
-MACHINE_CONFIG_START(darktowr_state::darktowr)
+void darktowr_state::darktowr(machine_config &config)
+{
 	ddragon(config);
 
 	/* basic machine hardware */
-	MCFG_DEVICE_MODIFY("maincpu")
-	MCFG_DEVICE_PROGRAM_MAP(darktowr_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &darktowr_state::darktowr_map);
 
-	MCFG_DEVICE_ADD("mcu", M68705P3, XTAL(4'000'000))
-	MCFG_M68705_PORTA_W_CB(WRITE8(*this, darktowr_state, mcu_port_a_w))
+	M68705P3(config, m_mcu, XTAL(4'000'000));
+	m_mcu->porta_w().set(FUNC(darktowr_state::mcu_port_a_w));
 
 	ADDRESS_MAP_BANK(config, "darktowr_bank").set_map(&darktowr_state::darktowr_banked_map).set_options(ENDIANNESS_BIG, 8, 17, 0x4000);
+}
 
-	/* video hardware */
-MACHINE_CONFIG_END
-
-
-MACHINE_CONFIG_START(toffy_state::toffy)
+void toffy_state::toffy(machine_config &config)
+{
 	ddragon(config);
 
 	/* basic machine hardware */
-	MCFG_DEVICE_MODIFY("maincpu")
-	MCFG_DEVICE_PROGRAM_MAP(toffy_map)
+	m_maincpu->set_addrmap(AS_PROGRAM, &toffy_state::toffy_map);
 
-	MCFG_DEVICE_REMOVE("sub")
+	config.device_remove("sub");
 
 	/* sound hardware */
-	MCFG_DEVICE_REMOVE("adpcm1")
-	MCFG_DEVICE_REMOVE("adpcm2")
-MACHINE_CONFIG_END
-
-
+	config.device_remove("adpcm1");
+	config.device_remove("adpcm2");
+}
 
 /*************************************
  *

@@ -781,11 +781,11 @@ MACHINE_CONFIG_START(funkball_state::funkball)
 	ADDRESS_MAP_BANK(config, "flashbank").set_map(&funkball_state::flashbank_map).set_options(ENDIANNESS_LITTLE, 32, 32, 0x10000);
 
 	/* video hardware */
-	MCFG_DEVICE_ADD("voodoo_0", VOODOO_1, STD_VOODOO_1_CLOCK)
-	MCFG_VOODOO_FBMEM(2)
-	MCFG_VOODOO_TMUMEM(4,0)
-	MCFG_VOODOO_SCREEN_TAG("screen")
-	MCFG_VOODOO_CPU_TAG("maincpu")
+	VOODOO_1(config, m_voodoo, STD_VOODOO_1_CLOCK);
+	m_voodoo->set_fbmem(2);
+	m_voodoo->set_tmumem(4, 0);
+	m_voodoo->set_screen_tag("screen");
+	m_voodoo->set_cpu_tag(m_maincpu);
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -806,9 +806,9 @@ MACHINE_CONFIG_START(funkball_state::funkball)
 	rs232.dsr_handler().set("uart", FUNC(ns16550_device::dsr_w));
 	rs232.cts_handler().set("uart", FUNC(ns16550_device::cts_w));
 
-	MCFG_INTEL_28F320J5_ADD("u29")
-	MCFG_INTEL_28F320J5_ADD("u30")
-	MCFG_INTEL_28F320J5_ADD("u3")
+	INTEL_28F320J5(config, "u29");
+	INTEL_28F320J5(config, "u30");
+	INTEL_28F320J5(config, "u3");
 MACHINE_CONFIG_END
 
 ROM_START( funkball )
