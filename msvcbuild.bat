@@ -5,4 +5,4 @@
 
 @rem make SUBTARGET=tiny vs2015 
 @rem make vs2015 SUBTARGET=drivername SOURCES=src\mame\drivers\drivername.cpp
-make vs2017 PYTHON_EXECUTABLE=c:/msys64/mingw64/bin/python.exe
+make vs2017 PYTHON_EXECUTABLE=d:/msys64/mingw64/bin/python.exe
