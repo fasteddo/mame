@@ -12,5 +12,6 @@ src\mame\drivers\dkong.cpp,^
 src\mame\drivers\galaga.cpp,^
 src\mame\drivers\galaxian.cpp,^
 src\mame\drivers\m52.cpp,^
-src\mame\drivers\pacman.cpp ^
+src\mame\drivers\pacman.cpp,^
+src\mame\drivers\taitosj.cpp ^
 PYTHON_EXECUTABLE=d:/msys64/mingw64/bin/python.exe
