@@ -5,7 +5,7 @@
 
 @rem make SUBTARGET=tiny vs2015 
 @rem make vs2015 SUBTARGET=drivername SOURCES=src\mame\drivers\drivername.cpp
-make vs2017 SOURCES=^
+make vs2019 SOURCES=^
 src\mame\drivers\1942.cpp,^
 src\mame\drivers\centiped.cpp,^
 src\mame\drivers\dkong.cpp,^
@@ -14,4 +14,4 @@ src\mame\drivers\galaxian.cpp,^
 src\mame\drivers\m52.cpp,^
 src\mame\drivers\pacman.cpp,^
 src\mame\drivers\taitosj.cpp ^
-PYTHON_EXECUTABLE=d:/msys64/mingw64/bin/python.exe
+PYTHON_EXECUTABLE=d:/msys64-32-2019-12-23/mingw64/bin/python.exe
